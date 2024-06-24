@@ -10,11 +10,10 @@
  * governing permissions and limitations under the License.
  */
 
-/**
- * This is the main function
- * @param {string} name name of the person to greet
- * @returns {string} a greeting
- */
-export function main(name = 'world') {
-  return `Hello, ${name}.`;
-}
+import ComputeAtEdgeDeployer from './ComputeAtEdgeDeployer.js';
+import FastlyGateway from './FastlyGateway.js';
+
+export const plugins = [
+  ComputeAtEdgeDeployer,
+  FastlyGateway,
+];
