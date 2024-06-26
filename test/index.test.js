@@ -16,12 +16,14 @@ import assert from 'assert';
 import { plugins } from '../src/index.js';
 import ComputeAtEdgeDeployer from '../src/ComputeAtEdgeDeployer.js';
 import FastlyGateway from '../src/FastlyGateway.js';
+import EdgeBundler from '../src/EdgeBundler.js';
 
 describe('Index Tests', () => {
   it('exports the correct plugins', async () => {
     assert.deepStrictEqual(plugins, [
       ComputeAtEdgeDeployer,
       FastlyGateway,
+      EdgeBundler,
     ]);
   });
 });

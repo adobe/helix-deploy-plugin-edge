@@ -12,8 +12,10 @@
 /* eslint-env serviceworker */
 /* global Dictionary */
 
-import { extractPathFromURL } from './adapter-utils.js';
-
+export function extractPathFromURL(request) {
+  const suffixMatches = /^https?:\/\/[^/]+([^?]+)/.exec(request.url);
+  return suffixMatches ? suffixMatches[1] : request.url.replace(/\?.*/, '');
+}
 export function getEnvInfo(req, env) {
   const serviceVersion = env('FASTLY_SERVICE_VERSION');
   const requestId = env('FASTLY_TRACE_ID');
@@ -41,7 +43,7 @@ async function getEnvironmentInfo(req) {
   return getEnvInfo(req, mod.env);
 }
 
-async function handler(event) {
+async function handleRequest(event) {
   try {
     const { request } = event;
     const env = await getEnvironmentInfo(request);
@@ -110,19 +112,12 @@ async function handler(event) {
       }),
       storage: null,
     };
-    const response = await main(request, context);
-    return response;
+    return await main(request, context);
   } catch (e) {
     console.log(e.message);
     return new Response(`Error: ${e.message}`, { status: 500 });
   }
 }
 
-export default function fastly() {
-  console.log('checking for fastly environment');
-  /* eslint-disable-next-line no-undef */
-  if (CacheOverride) {
-    return handler;
-  }
-  return false;
-}
+/* eslint-disable no-restricted-globals */
+addEventListener('fetch', (event) => event.respondWith(handleRequest(event)));

@@ -12,8 +12,10 @@
 
 import ComputeAtEdgeDeployer from './ComputeAtEdgeDeployer.js';
 import FastlyGateway from './FastlyGateway.js';
+import EdgeBundler from './EdgeBundler.js';
 
 export const plugins = [
   ComputeAtEdgeDeployer,
   FastlyGateway,
+  EdgeBundler,
 ];

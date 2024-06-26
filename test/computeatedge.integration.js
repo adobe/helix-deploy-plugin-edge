@@ -13,10 +13,13 @@
 /* eslint-env mocha */
 /* eslint-disable no-underscore-dangle */
 import assert from 'assert';
+import { config } from 'dotenv';
 import { CLI } from '@adobe/helix-deploy';
 import fse from 'fs-extra';
 import path, { resolve } from 'path';
 import { createTestRoot, TestLogger } from './utils.js';
+
+config();
 
 describe('Fastly Compute@Edge Integration Test', () => {
   let testRoot;
@@ -44,7 +47,6 @@ describe('Fastly Compute@Edge Integration Test', () => {
         '--verbose',
         '--deploy',
         '--target', 'c@e',
-        '--arch', 'node', // TODO: make obsolete
         '--arch', 'edge',
         '--compute-service-id', serviceID,
         '--compute-test-domain', 'possibly-working-sawfish',

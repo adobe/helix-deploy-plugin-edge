@@ -9,11 +9,11 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-const { Response } = require('@adobe/fetch');
-const reader = require('./helper/read.js');
+import { Response } from '@adobe/fetch';
+import reader from './helper/read.js';
 
 // eslint-disable-next-line no-unused-vars
-module.exports.main = function main(req, context) {
+export function main(req, context) {
   if (req.url.endsWith('/fail')) {
     throw new Error('internal error');
   }
@@ -53,4 +53,4 @@ module.exports.main = function main(req, context) {
   response.headers.set('Hey', context.env.HEY);
   response.headers.set('Foo', context.env.FOO);
   return response;
-};
+}

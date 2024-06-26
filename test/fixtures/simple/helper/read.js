@@ -9,10 +9,10 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
-module.exports = () => {
+export default () => {
   try {
     const hello = path.resolve(process.platform === 'win32' ? __filename : __dirname, '..', 'files', 'hello.txt');
     const data = fs.readFileSync(hello, 'utf-8');
