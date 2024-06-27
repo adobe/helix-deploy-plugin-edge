@@ -11,11 +11,11 @@
  */
 /* eslint-env serviceworker */
 /* global Dictionary */
-
 export function extractPathFromURL(request) {
   const suffixMatches = /^https?:\/\/[^/]+([^?]+)/.exec(request.url);
   return suffixMatches ? suffixMatches[1] : request.url.replace(/\?.*/, '');
 }
+
 export function getEnvInfo(req, env) {
   const serviceVersion = env('FASTLY_SERVICE_VERSION');
   const requestId = env('FASTLY_TRACE_ID');

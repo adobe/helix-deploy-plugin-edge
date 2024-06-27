@@ -10,9 +10,8 @@
  * governing permissions and limitations under the License.
  */
 import { fileURLToPath } from 'url';
-import { WebpackBundler } from '@adobe/helix-deploy';
 import path from 'path';
-import webpack from 'webpack';
+import { WebpackBundler } from '@adobe/helix-deploy';
 
 // eslint-disable-next-line no-underscore-dangle
 const __dirname = path.resolve(fileURLToPath(import.meta.url), '..');
@@ -117,7 +116,7 @@ export default class EdgeBundler extends WebpackBundler {
     }
 
     if (cfg.progressHandler) {
-      opts.plugins.push(new webpack.ProgressPlugin(cfg.progressHandler));
+      this.initProgressHandler(opts, cfg);
     }
     return opts;
   }
