@@ -31,7 +31,7 @@ export default class EdgeBundler extends WebpackBundler {
       target: 'webworker',
       mode: 'development',
       // the universal adapter is the entry point
-      entry: cfg.adapterFile || path.resolve(__dirname, 'template', 'fastly-adapter.js'),
+      entry: cfg.adapterFile || path.resolve(__dirname, 'template', 'edge-index.js'),
       output: {
         path: cfg.cwd,
         filename: path.relative(cfg.cwd, cfg.edgeBundle),
@@ -49,6 +49,7 @@ export default class EdgeBundler extends WebpackBundler {
         '@google-cloud/secret-manager',
         '@google-cloud/storage',
         'fastly:env',
+        'fastly:logger',
       ].reduce((obj, ext) => {
         // this makes webpack to ignore the module and just leave it as normal require.
         // eslint-disable-next-line no-param-reassign

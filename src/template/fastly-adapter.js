@@ -10,11 +10,8 @@
  * governing permissions and limitations under the License.
  */
 /* eslint-env serviceworker */
-/* global Dictionary */
-export function extractPathFromURL(request) {
-  const suffixMatches = /^https?:\/\/[^/]+([^?]+)/.exec(request.url);
-  return suffixMatches ? suffixMatches[1] : request.url.replace(/\?.*/, '');
-}
+/* global Dictionary, CacheOverride */
+import { extractPathFromURL } from './adapter-utils.js';
 
 export function getEnvInfo(req, env) {
   const serviceVersion = env('FASTLY_SERVICE_VERSION');
@@ -119,5 +116,14 @@ async function handleRequest(event) {
   }
 }
 
-/* eslint-disable no-restricted-globals */
-addEventListener('fetch', (event) => event.respondWith(handleRequest(event)));
+/**
+ * Returns the fastly request handler on fastly environments.
+ * @returns {null|(function(*): Promise<*|Response|undefined>)|*}
+ */
+export default function fastly() {
+  if (CacheOverride) {
+    console.log('detected fastly environment');
+    return handleRequest;
+  }
+  return null;
+}

@@ -9,15 +9,9 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
+/* eslint-env serviceworker */
 
-import ComputeAtEdgeDeployer from './ComputeAtEdgeDeployer.js';
-import FastlyGateway from './FastlyGateway.js';
-import EdgeBundler from './EdgeBundler.js';
-import CloudflareDeployer from './CloudflareDeployer.js';
-
-export const plugins = [
-  ComputeAtEdgeDeployer,
-  FastlyGateway,
-  CloudflareDeployer,
-  EdgeBundler,
-];
+export function extractPathFromURL(request) {
+  const suffixMatches = /^https?:\/\/[^/]+([^?]+)/.exec(request.url);
+  return suffixMatches ? suffixMatches[1] : request.url.replace(/\?.*/, '');
+}
