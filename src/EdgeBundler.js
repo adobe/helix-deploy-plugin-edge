@@ -129,6 +129,19 @@ export default class EdgeBundler extends WebpackBundler {
     return this.createWebpackBundle('edge');
   }
 
+  async updateArchive(archive, packageJson) {
+    await super.updateArchive(archive, packageJson);
+    archive.file(this.cfg.edgeBundle, { name: 'index.js' });
+
+    // edge function stuff
+    archive.append([
+      'account_id = "fakefakefake"',
+      `name = "${this.cfg.packageName}/${this.cfg.name}"`,
+      'type = "javascript"',
+      'workers_dev = true',
+    ].join('\n'), { name: 'wrangler.toml' });
+  }
+
   // eslint-disable-next-line class-methods-use-this
   validateBundle() {
     // TODO: validate edge bundle, skipped since we're on node
