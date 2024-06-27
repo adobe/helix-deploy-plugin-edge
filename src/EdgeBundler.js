@@ -29,7 +29,7 @@ export default class EdgeBundler extends WebpackBundler {
     const { cfg } = this;
     const opts = {
       target: 'webworker',
-      mode: 'development',
+      mode: 'production',
       // the universal adapter is the entry point
       entry: cfg.adapterFile || path.resolve(__dirname, 'template', 'edge-index.js'),
       output: {
@@ -104,6 +104,15 @@ export default class EdgeBundler extends WebpackBundler {
       node: {
         __dirname: true,
         __filename: false,
+      },
+      optimization: {
+        // we enable production mode in order to get the correct imports (eg micromark has special
+        // export condition for 'development'). but we disable minimize and keep named modules
+        // in order to easier match log errors to the bundle
+        minimize: false,
+        concatenateModules: false,
+        mangleExports: false,
+        moduleIds: 'named',
       },
       plugins: [],
     };
