@@ -57,9 +57,13 @@ export async function handleRequest(event) {
  * @returns {null|(function(*): Promise<*|Response|undefined>)|*}
  */
 export default function cloudflare() {
-  if (caches?.default) {
-    console.log('detected cloudflare environment');
-    return handleRequest;
+  try {
+    if (caches.default) {
+      console.log('detected cloudflare environment');
+      return handleRequest;
+    }
+  } catch {
+    // ignore
   }
   return null;
 }

@@ -40,7 +40,7 @@ async function getEnvironmentInfo(req) {
   return getEnvInfo(req, mod.env);
 }
 
-async function handleRequest(event) {
+export async function handleRequest(event) {
   try {
     const { request } = event;
     const env = await getEnvironmentInfo(request);
@@ -121,9 +121,14 @@ async function handleRequest(event) {
  * @returns {null|(function(*): Promise<*|Response|undefined>)|*}
  */
 export default function fastly() {
-  if (CacheOverride) {
-    console.log('detected fastly environment');
-    return handleRequest;
+  try {
+    // todo: find better way to detect fastly environment, eg: import 'fastly:env'
+    if (CacheOverride) {
+      console.log('detected fastly environment');
+      return handleRequest;
+    }
+  } catch {
+    // ignore
   }
   return null;
 }

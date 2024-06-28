@@ -13,7 +13,7 @@
 /* eslint-env mocha */
 
 import assert from 'assert';
-import { getEnvInfo } from '../src/template/fastly-adapter.js';
+import adapter, { getEnvInfo, handleRequest } from '../src/template/fastly-adapter.js';
 
 describe('Fastly Adapter Test', () => {
   it('Captures the environment', () => {
@@ -50,5 +50,18 @@ describe('Fastly Adapter Test', () => {
     const info = getEnvInfo(req, env);
 
     assert.equal(info.txId, 'tx7');
+  });
+
+  it('returns the request handler in a fastly environment', () => {
+    try {
+      global.CacheOverride = true;
+      assert.strictEqual(adapter(), handleRequest);
+    } finally {
+      delete global.CacheOverride;
+    }
+  });
+
+  it('returns null in a non-fastly environment', () => {
+    assert.strictEqual(adapter(), null);
   });
 });
