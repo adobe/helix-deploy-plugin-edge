@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Adobe. All rights reserved.
+ * Copyright 2019 Adobe. All rights reserved.
  * This file is licensed to you under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License. You may obtain a copy
  * of the License at http://www.apache.org/licenses/LICENSE-2.0
@@ -9,15 +9,25 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-// eslint-disable-next-line no-console
-import { resolve } from 'path';
-import { fileURLToPath } from 'url';
+import fs from 'fs';
+import path from 'path';
 
-console.log('Forcing HTTP/1.1 for Adobe Fetch');
-process.env.HELIX_FETCH_FORCE_HTTP1 = 'true';
-
-// eslint-disable-next-line no-underscore-dangle
-global.__rootdir = resolve(fileURLToPath(import.meta.url), '..', '..');
-
-// emulate edge worker
-global.addEventListener = () => {};
+export default () => {
+  try {
+    const hello = path.resolve(process.platform === 'win32' ? __filename : __dirname, '..', 'files', 'hello.txt');
+    const data = fs.readFileSync(hello, 'utf-8');
+    // eslint-disable-next-line no-console
+    console.log(hello, data);
+    return data;
+  } catch (e) {
+    return `
+${e.message}
+${e.stack}
+${__dirname}
+${__filename}
+${process.cwd()}
+${require.main.path}
+${process.platform === 'win32'}
+`;
+  }
+};
