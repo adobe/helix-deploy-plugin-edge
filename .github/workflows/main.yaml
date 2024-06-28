@@ -20,7 +20,14 @@ jobs:
       - run: npm test
       - uses: codecov/codecov-action@v3
         with:
+          flags: unittests
           token: ${{ secrets.CODECOV_TOKEN }}
+
+      - run: npm run integration-ci
+        env:
+          HLX_FASTLY_AUTH: ${{ secrets.HLX_FASTLY_AUTH }}
+          HLX_FASTLY_SERVICE_ID: ${{ secrets.HLX_FASTLY_SERVICE_ID }}
+
       - name: Semantic Release (Dry Run)
         run: npm run semantic-release-dry
         env:
