@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/adobe/helix-deploy-fastly-compute/compare/v1.0.2...v1.0.3) (2024-08-27)
+
+
+### Bug Fixes
+
+* **deps:** update external fixes ([#9](https://github.com/adobe/helix-deploy-fastly-compute/issues/9)) ([70abfa1](https://github.com/adobe/helix-deploy-fastly-compute/commit/70abfa118a87746ba0629edd595076dcd0a50ee6))
+
 ## [1.0.2](https://github.com/adobe/helix-deploy-fastly-compute/compare/v1.0.1...v1.0.2) (2024-07-27)
 
 
