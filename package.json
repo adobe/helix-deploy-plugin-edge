@@ -38,12 +38,12 @@
     "dotenv": "16.4.5",
     "eslint": "8.57.0",
     "fs-extra": "11.2.0",
-    "husky": "9.1.5",
+    "husky": "9.1.6",
     "lint-staged": "15.2.10",
     "mocha": "10.7.3",
     "mocha-multi-reporters": "1.5.1",
     "nock": "13.5.5",
-    "semantic-release": "24.1.0",
+    "semantic-release": "24.1.1",
     "yauzl": "3.1.3"
   },
   "lint-staged": {
@@ -55,7 +55,7 @@
   },
   "dependencies": {
     "@adobe/fastly-native-promises": "^3.0.10",
-    "@fastly/js-compute": "3.21.4",
+    "@fastly/js-compute": "3.22.4",
     "chalk-template": "1.1.0",
     "constants-browserify": "1.0.0",
     "form-data": "4.0.0",
