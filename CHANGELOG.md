@@ -1,3 +1,10 @@
+## [1.0.7](https://github.com/adobe/helix-deploy-fastly-compute/compare/v1.0.6...v1.0.7) (2024-09-23)
+
+
+### Bug Fixes
+
+* **deps:** update dependency @adobe/fastly-native-promises to v3.0.11 ([75ee35e](https://github.com/adobe/helix-deploy-fastly-compute/commit/75ee35e16dd7fd1eb1f693fb4114c9eb1aa376c1))
+
 ## [1.0.6](https://github.com/adobe/helix-deploy-fastly-compute/compare/v1.0.5...v1.0.6) (2024-09-21)
 
 
