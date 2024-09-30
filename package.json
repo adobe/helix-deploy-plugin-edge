@@ -14,14 +14,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/adobe/helix-deploy-fastly-compute"
+    "url": "https://github.com/adobe/helix-deploy-plugin-edge"
   },
   "author": "",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/adobe/helix-deploy-fastly-compute/issues"
+    "url": "https://github.com/adobe/helix-deploy-plugin-edge/issues"
   },
-  "homepage": "https://github.com/adobe/helix-deploy-fastly-compute#readme",
+  "homepage": "https://github.com/adobe/helix-deploy-plugin-edge#readme",
   "mocha": {
     "require": "test/setup-env.js",
     "recursive": "true",
@@ -43,7 +43,7 @@
     "mocha": "10.7.3",
     "mocha-multi-reporters": "1.5.1",
     "nock": "13.5.5",
-    "semantic-release": "24.1.1",
+    "semantic-release": "24.1.2",
     "yauzl": "3.1.3"
   },
   "lint-staged": {
