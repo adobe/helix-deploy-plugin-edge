@@ -1,3 +1,10 @@
+## [1.0.8](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.0.7...v1.0.8) (2024-10-12)
+
+
+### Bug Fixes
+
+* **deps:** update dependency form-data to v4.0.1 ([ae36d8d](https://github.com/adobe/helix-deploy-plugin-edge/commit/ae36d8da208284fad31841df3e0772cf18d2b0d6))
+
 ## [1.0.7](https://github.com/adobe/helix-deploy-fastly-compute/compare/v1.0.6...v1.0.7) (2024-09-23)
 
 
