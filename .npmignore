@@ -4,6 +4,7 @@
 .eslintrc.js
 .github/
 .idea
+.env
 .jsdoc.json
 .nyc_output/
 .releaserc.js
