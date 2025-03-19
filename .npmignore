@@ -1,5 +1,4 @@
 *.tgz
-.circleci/
 .eslintignore
 .eslintrc.js
 .github/
@@ -9,13 +8,12 @@
 .nyc_output/
 .releaserc.js
 .renovaterc.json
-.snyk
-.tidelift.yml
+.husky
 build
 coverage
 junit
 logs
 node_modules/
-snykmocha.js
 test
 test-results.xml
+.releaserc.cjs
