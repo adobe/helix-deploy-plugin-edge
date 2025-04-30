@@ -54,7 +54,7 @@
     "@adobe/helix-deploy": "^12.0.0"
   },
   "dependencies": {
-    "@adobe/fastly-native-promises": "^3.0.10",
+    "@adobe/fastly-native-promises": "3.0.12",
     "@fastly/js-compute": "3.25.0",
     "chalk-template": "1.1.0",
     "constants-browserify": "1.0.0",
