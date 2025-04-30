@@ -16,6 +16,7 @@ jobs:
         with:
           node-version: '22.x'
       - run: npm ci
+      - run: npm install @adobe/helix-deploy
       - run: npm run lint
       - run: npm test
       - uses: codecov/codecov-action@v4
