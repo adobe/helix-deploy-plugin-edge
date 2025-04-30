@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "semantic-release": "semantic-release",
     "semantic-release-dry": "semantic-release --dry-run --branches $CI_BRANCH",
-    "prepare": "husky"
+    "prepare": "husky install"
   },
   "repository": {
     "type": "git",
@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "@adobe/eslint-config-helix": "2.0.9",
-    "@adobe/fetch": "4.2.0",
+    "@adobe/fetch": "^4.1.8",
     "@semantic-release/changelog": "6.0.3",
     "@semantic-release/git": "10.0.1",
     "@semantic-release/npm": "12.0.1",
