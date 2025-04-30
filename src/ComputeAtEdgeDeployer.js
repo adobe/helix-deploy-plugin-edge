@@ -143,6 +143,12 @@ service_id = ""
       }
     }, true);
 
+    this.log.debug('--: waiting for 90 seconds for Fastly to process the deployment...');
+    await new Promise((resolve) => {
+      setTimeout(resolve, 90000);
+    });
+    this.log.debug('--: continuing after wait period');
+
     await this._fastly.discard();
   }
 
