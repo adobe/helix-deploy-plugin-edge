@@ -15,7 +15,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22.x'
-      - run: npm ci
+      - run: npm install # we have platform-specific dependencies, and npm ci will use the macos versions that most of our developers have locally
       - run: npm install @adobe/helix-deploy
       - run: npm run lint
       - run: npm test
