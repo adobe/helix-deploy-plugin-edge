@@ -11,11 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js 20.x
+      - name: Use Node.js 22.x
         uses: actions/setup-node@v4
         with:
           node-version: '22.x'
       - run: npm ci
+      - run: npm install @adobe/helix-deploy
       - run: npm run lint
       - run: npm test
       - uses: codecov/codecov-action@v5
@@ -26,7 +27,6 @@ jobs:
       - run: npm run integration-ci
         env:
           HLX_FASTLY_AUTH: ${{ secrets.HLX_FASTLY_AUTH }}
-          HLX_FASTLY_SERVICE_ID: ${{ secrets.HLX_FASTLY_SERVICE_ID }}
 
       - name: Semantic Release (Dry Run)
         run: npm run semantic-release-dry
@@ -41,7 +41,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js 20.x
+      - name: Use Node.js 22.x
         uses: actions/setup-node@v4
         with:
           node-version: '22.x'

@@ -84,7 +84,17 @@ service_id = ""
 
     return new Promise((resolve, reject) => {
       this.log.debug('--: creating WASM bundle of script and interpreter');
-      compileApplicationToWasm(input, output, wasmEngine, false, false)
+      compileApplicationToWasm(
+        input, // input file
+        output, // output file
+        wasmEngine, // wasm engine
+        true, // enableHttpCache
+        false, // enableExperimentalHighResolutionTimeMethods
+        true, // enableAOT
+        '', // aotCache
+        true, // moduleMode
+        true, // doBundle
+      )
         .then(async () => {
           const file = path.resolve(bundleDir, 'fastly-bundle.tar.gz');
           this.log.debug(chalk`{green ok:} created WASM bundle of script and interpreter in ${bundleDir}/bin/main.wasm`);
@@ -142,6 +152,12 @@ service_id = ""
         await this._fastly.writeBackend(version, 'gateway', backend);
       }
     }, true);
+
+    this.log.debug('--: waiting for 90 seconds for Fastly to process the deployment...');
+    await new Promise((resolve) => {
+      setTimeout(resolve, 90000);
+    });
+    this.log.debug('--: continuing after wait period');
 
     await this._fastly.discard();
   }

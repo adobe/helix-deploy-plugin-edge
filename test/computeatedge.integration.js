@@ -55,6 +55,7 @@ describe('Fastly Compute@Edge Integration Test', () => {
         '--package.params', 'ZIP=zap',
         '--update-package', 'true',
         '--fastly-gateway', 'deploy-test.anywhere.run',
+        '--fastly-service-id', '4u8SAdblhzzbXntBYCjhcK',
         '-p', 'FOO=bar',
         '--test', '/201',
         '--directory', testRoot,
