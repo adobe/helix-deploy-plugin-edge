@@ -60,6 +60,7 @@ describe('Fastly Compute@Edge Integration Test', () => {
         '--test', '/201',
         '--directory', testRoot,
         '--entryFile', 'src/index.js',
+        '--esm', 'false',
       ]);
     builder.cfg._logger = new TestLogger();
 

@@ -56,6 +56,7 @@ describe('Cloudflare Integration Test', () => {
         '--test', '/foo',
         '--directory', testRoot,
         '--entryFile', 'src/index.js',
+        '--esm', 'false',
       ]);
     builder.cfg._logger = new TestLogger();
 

@@ -66,6 +66,7 @@ describe.skip('Gateway Integration Test', () => {
         '-l', 'latest',
         '-l', 'major',
         '-l', 'minor',
+        '--esm', 'false',
       ]);
     builder.cfg._logger = new TestLogger();
 
