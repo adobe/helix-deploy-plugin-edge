@@ -11,7 +11,7 @@
  */
 import { fileURLToPath } from 'url';
 import path from 'path';
-import { WebpackBundler } from '@adobe/helix-deploy';
+import { WebpackBundler } from '@adobe/helix-deploy-plugin-webpack';
 
 // eslint-disable-next-line no-underscore-dangle
 const __dirname = path.resolve(fileURLToPath(import.meta.url), '..');

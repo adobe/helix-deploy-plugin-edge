@@ -66,6 +66,8 @@ describe.skip('Gateway Integration Test', () => {
         '-l', 'latest',
         '-l', 'major',
         '-l', 'minor',
+        '--bundler', 'webpack',
+        '--esm', 'false',
       ]);
     builder.cfg._logger = new TestLogger();
 
