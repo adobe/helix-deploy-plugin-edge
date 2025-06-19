@@ -76,6 +76,8 @@ describe('Edge Build Test', () => {
       .prepare([
         '--target', 'wsk',
         '--plugin', path.resolve(__rootdir, 'src', 'index.js'),
+        '--bundler', 'webpack',
+        '--esm', 'false',
         '--arch', 'edge',
         '--verbose',
         '--directory', testRoot,
