@@ -1,3 +1,10 @@
+## [1.1.5](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.1.4...v1.1.5) (2025-07-22)
+
+
+### Bug Fixes
+
+* **deps:** update dependency form-data to v4.0.4 [security] ([#54](https://github.com/adobe/helix-deploy-plugin-edge/issues/54)) ([cf84150](https://github.com/adobe/helix-deploy-plugin-edge/commit/cf84150bf5371268ac17776a168f41764b0851a9))
+
 ## [1.1.4](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.1.3...v1.1.4) (2025-07-22)
 
 
