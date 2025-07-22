@@ -1,3 +1,10 @@
+## [1.1.4](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.1.3...v1.1.4) (2025-07-22)
+
+
+### Bug Fixes
+
+* **deps:** update dependency @adobe/fastly-native-promises to v3.0.16 ([#52](https://github.com/adobe/helix-deploy-plugin-edge/issues/52)) ([19e7ca4](https://github.com/adobe/helix-deploy-plugin-edge/commit/19e7ca4bdd6b4ff4e75c384244301e28f301d358))
+
 ## [1.1.3](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.1.2...v1.1.3) (2025-06-09)
 
 
