@@ -1,3 +1,10 @@
+## [1.1.9](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.1.8...v1.1.9) (2025-10-06)
+
+
+### Bug Fixes
+
+* **deps:** update external fixes ([#65](https://github.com/adobe/helix-deploy-plugin-edge/issues/65)) ([961be9d](https://github.com/adobe/helix-deploy-plugin-edge/commit/961be9d761b9316aa2a336478517bd4a54736dd9))
+
 ## [1.1.8](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.1.7...v1.1.8) (2025-09-19)
 
 
