@@ -1,3 +1,10 @@
+## [1.1.11](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.1.10...v1.1.11) (2025-10-16)
+
+
+### Bug Fixes
+
+* update semantic-release to v25 and node to 24.x for OIDC ([e54371b](https://github.com/adobe/helix-deploy-plugin-edge/commit/e54371bafe2af50b3c87b0735a1274084aef5ecb))
+
 ## [1.1.10](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.1.9...v1.1.10) (2025-10-13)
 
 
