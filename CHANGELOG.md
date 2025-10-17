@@ -1,3 +1,11 @@
+## [1.1.14](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.1.13...v1.1.14) (2025-10-17)
+
+
+### Bug Fixes
+
+* revert to default GITHUB_TOKEN, keep top-level permissions for OIDC ([be0f441](https://github.com/adobe/helix-deploy-plugin-edge/commit/be0f44151fdd351f4cd4786a8abf233bc2e5abde))
+* use ADOBE_BOT_GITHUB_TOKEN and add top-level permissions for npm provenance ([11c0bf4](https://github.com/adobe/helix-deploy-plugin-edge/commit/11c0bf4cb92b1e4f1d9583cc77669bfa4a155f8c))
+
 ## [1.1.13](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.1.12...v1.1.13) (2025-10-17)
 
 
