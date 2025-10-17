@@ -1,3 +1,10 @@
+## [1.1.13](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.1.12...v1.1.13) (2025-10-17)
+
+
+### Bug Fixes
+
+* enable npm provenance to support automation token publishing with 2FA ([204f980](https://github.com/adobe/helix-deploy-plugin-edge/commit/204f98010f30cecc2725b036bb444c3b7a4ba468))
+
 ## [1.1.12](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.1.11...v1.1.12) (2025-10-17)
 
 
