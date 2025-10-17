@@ -1,3 +1,10 @@
+## [1.1.15](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.1.14...v1.1.15) (2025-10-17)
+
+
+### Bug Fixes
+
+* use correct provenance option name ([5f9c765](https://github.com/adobe/helix-deploy-plugin-edge/commit/5f9c765780cfdcc34fe4296e06efc0d2b31fa83c))
+
 ## [1.1.14](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.1.13...v1.1.14) (2025-10-17)
 
 
