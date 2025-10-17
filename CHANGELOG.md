@@ -1,3 +1,10 @@
+## [1.1.16](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.1.15...v1.1.16) (2025-10-17)
+
+
+### Bug Fixes
+
+* upgrade @semantic-release/npm to 13.0.0 for provenance support ([b33367c](https://github.com/adobe/helix-deploy-plugin-edge/commit/b33367ccf0bc70180d6383f2476789f86c461a0a))
+
 ## [1.1.15](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.1.14...v1.1.15) (2025-10-17)
 
 
