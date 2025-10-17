@@ -7,7 +7,7 @@ module.exports = {
     }],
     ["@semantic-release/npm", {
       "npmPublish": true,
-      "npmProvenance": true
+      "provenance": true
     }],
     ["@semantic-release/git", {
       "assets": ["package.json", "CHANGELOG.md"],
