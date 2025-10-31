@@ -1,3 +1,10 @@
+## [1.1.17](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.1.16...v1.1.17) (2025-10-31)
+
+
+### Bug Fixes
+
+* **deps:** update dependency tar to v7.5.2 [security] ([#72](https://github.com/adobe/helix-deploy-plugin-edge/issues/72)) ([f101109](https://github.com/adobe/helix-deploy-plugin-edge/commit/f101109c74d69c54ad8cab27498b6858f47c080e))
+
 ## [1.1.16](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.1.15...v1.1.16) (2025-10-17)
 
 
