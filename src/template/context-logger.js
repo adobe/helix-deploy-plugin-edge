@@ -62,11 +62,13 @@ export function createFastlyLogger(context) {
   let loggerModule = null;
 
   // Initialize Fastly logger module asynchronously
+  // eslint-disable-next-line import/no-unresolved
   loggerPromise = import('fastly:logger').then((module) => {
     loggerModule = module;
     loggersReady = true;
     loggerPromise = null;
   }).catch((err) => {
+    // eslint-disable-next-line no-console
     console.error(`Failed to import fastly:logger: ${err.message}`);
     loggersReady = true;
     loggerPromise = null;
@@ -88,6 +90,7 @@ export function createFastlyLogger(context) {
         try {
           loggers[name] = new loggerModule.Logger(name);
         } catch (err) {
+          // eslint-disable-next-line no-console
           console.error(`Failed to create Fastly logger "${name}": ${err.message}`);
           return;
         }
@@ -120,11 +123,13 @@ export function createFastlyLogger(context) {
             try {
               logger.log(logEntry);
             } catch (err) {
+              // eslint-disable-next-line no-console
               console.error(`Failed to log to Fastly logger: ${err.message}`);
             }
           });
         } else {
           // Fallback to console if no loggers configured
+          // eslint-disable-next-line no-console
           console.log(logEntry);
         }
       });
@@ -135,11 +140,13 @@ export function createFastlyLogger(context) {
           try {
             logger.log(logEntry);
           } catch (err) {
+            // eslint-disable-next-line no-console
             console.error(`Failed to log to Fastly logger: ${err.message}`);
           }
         });
       } else {
         // Fallback to console if no loggers configured
+        // eslint-disable-next-line no-console
         console.log(logEntry);
       }
     }
@@ -184,10 +191,12 @@ export function createCloudflareLogger(context) {
       // Emit one log per target using tab-separated format
       // Format: target\tlevel\tjson_body
       loggerNames.forEach((target) => {
+        // eslint-disable-next-line no-console
         console.log(`${target}\t${level}\t${body}`);
       });
     } else {
       // No targets configured, emit without target prefix
+      // eslint-disable-next-line no-console
       console.log(`-\t${level}\t${body}`);
     }
   };
