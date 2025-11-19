@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.1.17...v1.2.0) (2025-11-19)
+
+
+### Features
+
+* add concurrency control to deployment workflow ([4041224](https://github.com/adobe/helix-deploy-plugin-edge/commit/4041224a18bd8338156377e3b4592c725d9eec62))
+
 ## [1.1.17](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.1.16...v1.1.17) (2025-10-31)
 
 
