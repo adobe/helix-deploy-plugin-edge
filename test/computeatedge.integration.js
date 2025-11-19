@@ -104,7 +104,7 @@ describe('Fastly Compute@Edge Integration Test', () => {
     assert.ok(res);
     const out = builder.cfg._logger.output;
     assert.ok(out.indexOf('possibly-working-sawfish.edgecompute.app') > 0, out);
-    assert.ok(out.indexOf(`"test":"decompress-true"`) > 0 || out.indexOf('"isDecompressed":true') > 0, `The function output should indicate decompression worked: ${out}`);
+    assert.ok(out.indexOf('"test":"decompress-true"') > 0 || out.indexOf('"isDecompressed":true') > 0, `The function output should indicate decompression worked: ${out}`);
     assert.ok(out.indexOf('dist/DecompressTest/fastly-bundle.tar.gz') > 0, out);
   }).timeout(10000000);
 });
