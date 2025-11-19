@@ -530,13 +530,14 @@ export default {
 - **R2ListOptions**:
   - `limit`, `prefix`, `cursor`, `delimiter`, `include`
 
-**Cross-Platform Equivalent**: None (Fastly has no equivalent)
+**Cross-Platform Equivalent**: Fastly Object Storage (https://www.fastly.com/documentation/guides/platform/object-storage/)
 
 **Unification Strategy**:
-- R2 is for large object storage; no direct Fastly equivalent
-- For unification, could use external S3-compatible storage accessed via fetch
-- R2's conditional operations (ETags, dates) are advanced features
-- Consider R2 as a "premium" storage tier not available on all platforms
+- **Both platforms have object storage**: Cloudflare R2 and Fastly Object Storage
+- **Use [@adobe/helix-shared-storage](https://github.com/adobe/helix-shared/tree/main/packages/helix-shared-storage)** for unified access
+- helix-shared-storage provides a consistent interface across S3, R2, Azure Blob, and GCS
+- Platform-native R2 API is only needed for R2-specific features (multipart uploads, conditional operations)
+- For most use cases, use the unified storage library rather than platform-specific APIs
 
 **Code Example**:
 
@@ -1001,7 +1002,7 @@ export default {
 - KV metadata support
 - Multi-key operations
 - Key listing/enumeration
-- R2 object storage (no Fastly equivalent)
+- R2 object storage (Fastly has equivalent: Fastly Object Storage)
 - Durable Objects for coordination (no Fastly equivalent)
 - Richer cache control via headers
 
@@ -1086,32 +1087,39 @@ The following functionality should be implemented as **optional plugins** that c
        });
      ```
 
-3. **Advanced Storage** 🔌 **Plugin**
-   - R2/S3 object storage access (Cloudflare-specific or external)
-   - Durable Objects coordination (Cloudflare-only)
-   - Large object handling
-   - **Rationale**: Platform-specific features require conditional plugins
-   - **Example**: `@adobe/helix-edge-r2` plugin for Cloudflare-only deployments
+3. **Durable Objects** ❌ **Use Native APIs**
+   - Cloudflare-only coordination and state management
+   - No Fastly equivalent - use native Durable Objects API
+   - **Rationale**: Platform-specific feature, no cross-platform abstraction needed
+   - **Alternative**: External coordination services (Redis, DynamoDB) for cross-platform needs
 
 ### Import/Polyfill Implementation
 
 The following functionality should be provided as **imports or polyfills**:
 
-1. **External Storage Clients** 📦 **Import**
-   - `@adobe/helix-shared-storage` for S3/R2/Azure/GCS abstraction
-   - Platform-agnostic storage operations
-   - **Rationale**: Application-level storage concerns
+1. **Object Storage** 📦 **Import** ⭐ **RECOMMENDED**
+   - **Use [@adobe/helix-shared-storage](https://github.com/adobe/helix-shared/tree/main/packages/helix-shared-storage)** for unified object storage
+   - Supports both Cloudflare R2 and Fastly Object Storage (plus S3, Azure, GCS)
+   - Platform-agnostic storage operations with consistent API
+   - **Rationale**: Both platforms have object storage; use unified library
    - **Example**: Import and configure directly in function code
    - **Usage**:
      ```javascript
-     import { createR2Storage } from '@adobe/helix-shared-storage';
+     import { StorageClient } from '@adobe/helix-shared-storage';
 
      export async function main(request, context) {
-       const storage = createR2Storage({
-         bucket: context.env.R2_BUCKET,
-         credentials: context.env.R2_CREDENTIALS,
+       // Works on both Cloudflare (R2) and Fastly (Object Storage)
+       const storage = new StorageClient({
+         bucket: context.env.STORAGE_BUCKET,
+         region: context.env.STORAGE_REGION,
+         credentials: {
+           accessKeyId: context.env.AWS_ACCESS_KEY_ID,
+           secretAccessKey: context.env.AWS_SECRET_ACCESS_KEY,
+         }
        });
+
        await storage.put('key', 'value');
+       const value = await storage.get('key');
      }
      ```
 

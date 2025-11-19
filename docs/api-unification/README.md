@@ -99,8 +99,10 @@ export async function main(request, context) {
 ```
 
 **Don't create plugins or wrappers for:**
-- Cloudflare: HTMLRewriter, Durable Objects, R2, Workers AI, WebSocketPair
+- Cloudflare: HTMLRewriter, Durable Objects, Workers AI, WebSocketPair
 - Fastly: EdgeRateLimiter, PenaltyBox, Fanout, CacheOverride callbacks
+
+**Note**: Object storage (R2/Fastly Object Storage) exists on both platforms - use [@adobe/helix-shared-storage](https://github.com/adobe/helix-shared/tree/main/packages/helix-shared-storage) for unified access.
 
 ## Document Index
 
@@ -109,7 +111,7 @@ Each document includes platform comparisons, unification strategies, and **imple
 | Document | Description | Key APIs Covered | Implementation Focus |
 |----------|-------------|------------------|---------------------|
 | [**Request/Response/Fetch**](./request-response.md) | Core HTTP primitives and handler patterns | Request, Response, Fetch, Headers, FetchEvent | ✅ Wrapper: Handler normalization, backend routing<br>🔌 Plugin: Cache control (both platforms) |
-| [**Cache & Storage**](./cache-storage.md) | Caching and persistent storage APIs | SimpleCache, KVStore, Workers KV, R2, Durable Objects | ✅ Wrapper: Storage bindings, secrets<br>🔌 Plugin: KV (both), Cache (both)<br>❌ Native: R2, Durable Objects |
+| [**Cache & Storage**](./cache-storage.md) | Caching and persistent storage APIs | SimpleCache, KVStore, Workers KV, R2, Durable Objects | ✅ Wrapper: Storage bindings, secrets<br>🔌 Plugin: KV (both), Cache (both)<br>📦 Import: Object storage (helix-shared-storage)<br>❌ Native: Durable Objects (CF only) |
 | [**HTML Rewriter**](./html-rewriter.md) | Streaming HTML transformation | HTMLRewriter, DOM manipulation, content injection | ❌ Native: Use Cloudflare HTMLRewriter directly<br>📦 Polyfill: htmlparser2 on Fastly if needed |
 | [**Cryptography & Encoding**](./crypto-encoding.md) | Web Crypto API and data encoding | SubtleCrypto, TextEncoder/Decoder, atob/btoa | ✅ No wrapper needed (Web Standard)<br>📦 Import: JWT libraries, additional algorithms |
 | [**WebSocket & Streaming**](./websocket-streaming.md) | Real-time communication and streams | WebSocketPair, Fanout, ReadableStream, TransformStream | ✅ Wrapper: Standard streams<br>❌ Native: WebSocketPair (CF), Fanout (Fastly) |
