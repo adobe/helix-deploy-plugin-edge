@@ -11,10 +11,233 @@
  */
 /* eslint-env serviceworker */
 
-module.exports = {
-  // replacing @adobe/fetch with the built-in APIs
-  fetch,
-  Request,
-  Response,
-  Headers,
+// Platform detection and native CacheOverride loading
+let nativeCacheOverride = null;
+let isFastly = false;
+let isCloudflare = false;
+let fastlyModulePromise = null;
+
+// Try to import Fastly's CacheOverride module
+// Use a function to prevent webpack from trying to resolve this at build time
+async function loadFastlyModule() {
+  try {
+    // Dynamic import - webpack will leave this as-is because it's external
+    const moduleName = 'fastly:cache-override';
+    // eslint-disable-next-line import/no-unresolved
+    const module = await import(/* webpackIgnore: true */ moduleName);
+    nativeCacheOverride = module.CacheOverride;
+    isFastly = true;
+    return module;
+  } catch {
+    // Not Fastly environment - this is expected on other platforms
+    return null;
+  }
+}
+
+// Start loading the module if available
+try {
+  fastlyModulePromise = loadFastlyModule();
+} catch {
+  fastlyModulePromise = null;
+}
+
+// Detect Cloudflare environment
+try {
+  if (typeof caches !== 'undefined' && caches.default) {
+    isCloudflare = true;
+  }
+} catch {
+  // Not Cloudflare
+}
+
+/**
+ * Unified CacheOverride class that works across Fastly and Cloudflare platforms
+ */
+class UnifiedCacheOverride {
+  /**
+   * Creates a new CacheOverride instance
+   * @param {string|object} modeOrInit - Either a mode string or init object
+   * @param {object} [init] - Optional init object when mode is first param
+   * @param {number} [init.ttl] - Time-to-live in seconds
+   * @param {string} [init.cacheKey] - Custom cache key
+   * @param {string} [init.surrogateKey] - Surrogate keys for cache purging
+   */
+  constructor(modeOrInit, init) {
+    let mode;
+    let options;
+
+    // Parse constructor arguments (supports both signatures)
+    if (typeof modeOrInit === 'string') {
+      mode = modeOrInit;
+      options = init || {};
+    } else {
+      mode = 'override';
+      options = modeOrInit || {};
+    }
+
+    // Validate that only supported cross-platform options are used
+    const supportedOptions = ['ttl', 'cacheKey', 'surrogateKey'];
+    const unsupported = Object.keys(options)
+      .filter((key) => !supportedOptions.includes(key));
+    if (unsupported.length > 0) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `CacheOverride: Unsupported options ignored: ${unsupported.join(', ')}`,
+      );
+    }
+
+    this.mode = mode;
+    this.options = {
+      ...(typeof options.ttl === 'number' && { ttl: options.ttl }),
+      ...(options.cacheKey && { cacheKey: options.cacheKey }),
+      ...(options.surrogateKey && { surrogateKey: options.surrogateKey }),
+    };
+
+    this.modeOrInit = modeOrInit;
+    this.native = null;
+    this.nativeInitialized = false;
+  }
+
+  /**
+   * Lazy initialization of native Fastly CacheOverride
+   * @private
+   */
+  async initNative() {
+    if (this.nativeInitialized) {
+      return;
+    }
+
+    this.nativeInitialized = true;
+
+    // Wait for Fastly module to load if needed
+    if (fastlyModulePromise) {
+      await fastlyModulePromise;
+    }
+
+    // Create native instance if on Fastly
+    if (isFastly && nativeCacheOverride) {
+      // eslint-disable-next-line new-cap
+      const NativeCacheOverride = nativeCacheOverride;
+      if (typeof this.modeOrInit === 'string') {
+        this.native = new NativeCacheOverride(this.modeOrInit, this.options);
+      } else {
+        this.native = new NativeCacheOverride(this.options);
+      }
+    }
+  }
+
+  /**
+   * Converts this CacheOverride to Cloudflare cf options
+   * @returns {object|undefined} Cloudflare cf object or undefined
+   */
+  toCloudflareOptions() {
+    const cf = {};
+
+    if (this.mode === 'pass') {
+      // Pass mode = don't cache
+      cf.cacheTtl = 0;
+      return cf;
+    }
+
+    if (this.mode === 'none') {
+      // None mode = respect origin headers (no cf options needed)
+      return undefined;
+    }
+
+    // Override mode - map cross-platform options
+    if (typeof this.options.ttl === 'number') {
+      cf.cacheTtl = this.options.ttl;
+    }
+
+    if (this.options.cacheKey) {
+      cf.cacheKey = this.options.cacheKey;
+    }
+
+    if (this.options.surrogateKey) {
+      // Map surrogateKey to cacheTags (Cloudflare uses array format)
+      cf.cacheTags = this.options.surrogateKey.split(/\s+/);
+    }
+
+    return Object.keys(cf).length > 0 ? cf : undefined;
+  }
+
+  /**
+   * Gets the native Fastly CacheOverride instance if available
+   * @returns {Promise<object|null>} Native CacheOverride or null
+   */
+  async getNative() {
+    await this.initNative();
+    return this.native || null;
+  }
+}
+
+// Store original fetch and other APIs
+const originalFetch = fetch;
+const {
+  Request: OriginalRequest,
+  Response: OriginalResponse,
+  Headers: OriginalHeaders,
+} = globalThis;
+
+/**
+ * Wrapped fetch that supports the cacheOverride option
+ * @param {string|Request} resource - URL or Request object
+ * @param {object} [options] - Fetch options with cacheOverride
+ * @returns {Promise<Response>} Fetch response
+ */
+async function wrappedFetch(resource, options = {}) {
+  const { cacheOverride, ...restOptions } = options;
+
+  if (!cacheOverride) {
+    // No cache override, use original fetch
+    return originalFetch(resource, restOptions);
+  }
+
+  // Initialize native CacheOverride on Fastly if needed
+  if (fastlyModulePromise || isFastly) {
+    await cacheOverride.initNative();
+  }
+
+  if (isFastly && cacheOverride.native) {
+    // On Fastly, use native CacheOverride
+    return originalFetch(resource, {
+      ...restOptions,
+      cacheOverride: cacheOverride.native,
+    });
+  }
+
+  if (isCloudflare) {
+    // On Cloudflare, convert to cf options
+    const cfOptions = cacheOverride.toCloudflareOptions();
+    if (cfOptions) {
+      return originalFetch(resource, {
+        ...restOptions,
+        cf: {
+          ...(restOptions.cf || {}),
+          ...cfOptions,
+        },
+      });
+    }
+  }
+
+  // Fallback: just use original fetch without cache override
+  return originalFetch(resource, restOptions);
+}
+
+// Export as CommonJS for webpack bundling compatibility
+export default {
+  fetch: wrappedFetch,
+  Request: OriginalRequest,
+  Response: OriginalResponse,
+  Headers: OriginalHeaders,
+  CacheOverride: UnifiedCacheOverride,
+};
+
+// Named exports for modern import syntax
+export {
+  wrappedFetch as fetch,
+  OriginalRequest as Request,
+  OriginalResponse as Response,
+  OriginalHeaders as Headers,
+  UnifiedCacheOverride as CacheOverride,
 };
