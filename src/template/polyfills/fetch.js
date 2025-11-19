@@ -11,10 +11,56 @@
  */
 /* eslint-env serviceworker */
 
-module.exports = {
-  // replacing @adobe/fetch with the built-in APIs
-  fetch,
-  Request,
-  Response,
-  Headers,
+/**
+ * Detects if the code is running in a Cloudflare Workers environment.
+ * @returns {boolean} true if running on Cloudflare
+ */
+function isCloudflareEnvironment() {
+  try {
+    // caches is a Cloudflare-specific global (CacheStorage API)
+    return typeof caches !== 'undefined' && caches.default !== undefined;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Wrapper for fetch that provides cross-platform decompression support.
+ * Maps the @adobe/fetch `decompress` option to platform-specific behavior:
+ * - Fastly: Sets fastly.decompressGzip based on decompress value
+ * - Cloudflare: No-op (automatically decompresses)
+ * - Node.js: Pass through to @adobe/fetch (handles it natively)
+ *
+ * @param {RequestInfo} resource - URL or Request object
+ * @param {RequestInit & {decompress?: boolean, fastly?: object}} options - Fetch options
+ * @returns {Promise<Response>} The fetch response
+ */
+function wrappedFetch(resource, options = {}) {
+  // Extract decompress option (default: true to match @adobe/fetch behavior)
+  const { decompress = true, fastly, ...otherOptions } = options;
+
+  // On Cloudflare: pass through as-is (auto-decompresses)
+  if (isCloudflareEnvironment()) {
+    return fetch(resource, options);
+  }
+
+  // On Fastly/Node.js: map decompress to fastly.decompressGzip
+  // This will be used on Fastly and ignored on Node.js
+  const fastlyOptions = {
+    decompressGzip: decompress,
+    ...fastly, // explicit fastly options override
+  };
+  return fetch(resource, { ...otherOptions, fastly: fastlyOptions });
+}
+
+// Export wrapped fetch and native Web APIs
+export { wrappedFetch as fetch };
+export const { Request, Response, Headers } = globalThis;
+
+// Export for CommonJS (for compatibility with require() in bundled code)
+export default {
+  fetch: wrappedFetch,
+  Request: globalThis.Request,
+  Response: globalThis.Response,
+  Headers: globalThis.Headers,
 };
