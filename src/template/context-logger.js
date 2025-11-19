@@ -51,39 +51,55 @@ export function enrichLogData(data, level, context) {
 /**
  * Creates a logger instance for Fastly using fastly:logger module.
  * Uses async import and handles initialization.
- * @param {string[]} loggerNames - Array of logger endpoint names
+ * Dynamically checks context.attributes.loggers on each call.
  * @param {object} context - The context object
  * @returns {object} Logger instance with level methods
  */
-export function createFastlyLogger(loggerNames, context) {
-  const loggers = [];
+export function createFastlyLogger(context) {
+  const loggers = {};
   let loggersReady = false;
   let loggerPromise = null;
+  let loggerModule = null;
 
-  // Initialize Fastly loggers asynchronously
-  if (loggerNames && loggerNames.length > 0) {
-    loggerPromise = import('fastly:logger').then((module) => {
-      loggerNames.forEach((name) => {
+  // Initialize Fastly logger module asynchronously
+  loggerPromise = import('fastly:logger').then((module) => {
+    loggerModule = module;
+    loggersReady = true;
+    loggerPromise = null;
+  }).catch((err) => {
+    console.error(`Failed to import fastly:logger: ${err.message}`);
+    loggersReady = true;
+    loggerPromise = null;
+  });
+
+  /**
+   * Gets or creates logger instances for configured targets.
+   * @param {string[]} loggerNames - Array of logger endpoint names
+   * @returns {object[]} Array of logger instances
+   */
+  const getLoggers = (loggerNames) => {
+    if (!loggerNames || loggerNames.length === 0) {
+      return [];
+    }
+
+    const instances = [];
+    loggerNames.forEach((name) => {
+      if (!loggers[name]) {
         try {
-          loggers.push(new module.Logger(name));
+          loggers[name] = new loggerModule.Logger(name);
         } catch (err) {
           console.error(`Failed to create Fastly logger "${name}": ${err.message}`);
+          return;
         }
-      });
-      loggersReady = true;
-      loggerPromise = null;
-    }).catch((err) => {
-      console.error(`Failed to import fastly:logger: ${err.message}`);
-      loggersReady = true;
-      loggerPromise = null;
+      }
+      instances.push(loggers[name]);
     });
-  } else {
-    // No loggers configured, mark as ready immediately
-    loggersReady = true;
-  }
+    return instances;
+  };
 
   /**
    * Sends a log entry to all configured Fastly loggers.
+   * Dynamically checks context.attributes.loggers on each call.
    * @param {string} level - Log level
    * @param {*} data - Log data
    */
@@ -92,11 +108,15 @@ export function createFastlyLogger(loggerNames, context) {
     const enrichedData = enrichLogData(normalizedData, level, context);
     const logEntry = JSON.stringify(enrichedData);
 
+    // Get current logger configuration from context
+    const loggerNames = context.attributes?.loggers;
+
     // If loggers are still initializing, wait for them
     if (loggerPromise) {
       loggerPromise.then(() => {
-        if (loggers.length > 0) {
-          loggers.forEach((logger) => {
+        const currentLoggers = getLoggers(loggerNames);
+        if (currentLoggers.length > 0) {
+          currentLoggers.forEach((logger) => {
             try {
               logger.log(logEntry);
             } catch (err) {
@@ -109,8 +129,9 @@ export function createFastlyLogger(loggerNames, context) {
         }
       });
     } else if (loggersReady) {
-      if (loggers.length > 0) {
-        loggers.forEach((logger) => {
+      const currentLoggers = getLoggers(loggerNames);
+      if (currentLoggers.length > 0) {
+        currentLoggers.forEach((logger) => {
           try {
             logger.log(logEntry);
           } catch (err) {
@@ -125,50 +146,59 @@ export function createFastlyLogger(loggerNames, context) {
   };
 
   return {
-    debug: (data) => log('debug', data),
-    info: (data) => log('info', data),
-    warn: (data) => log('warn', data),
+    fatal: (data) => log('fatal', data),
     error: (data) => log('error', data),
+    warn: (data) => log('warn', data),
+    info: (data) => log('info', data),
+    verbose: (data) => log('verbose', data),
+    debug: (data) => log('debug', data),
+    silly: (data) => log('silly', data),
   };
 }
 
 /**
  * Creates a logger instance for Cloudflare that emits console logs
- * with target field for tail worker filtering.
- * @param {string[]} loggerNames - Array of logger target names
+ * using tab-separated format for efficient tail worker filtering.
+ * Format: target\tlevel\tjson_body
+ * Dynamically checks context.attributes.loggers on each call.
  * @param {object} context - The context object
  * @returns {object} Logger instance with level methods
  */
-export function createCloudflareLogger(loggerNames, context) {
+export function createCloudflareLogger(context) {
   /**
    * Sends a log entry to console for each configured target.
-   * Each entry includes a 'target' field for tail worker filtering.
+   * Uses tab-separated format: target\tlevel\tjson_body
+   * This allows tail workers to efficiently filter without parsing JSON.
    * @param {string} level - Log level
    * @param {*} data - Log data
    */
   const log = (level, data) => {
     const normalizedData = normalizeLogData(data);
     const enrichedData = enrichLogData(normalizedData, level, context);
+    const body = JSON.stringify(enrichedData);
+
+    // Get current logger configuration from context
+    const loggerNames = context.attributes?.loggers;
 
     if (loggerNames && loggerNames.length > 0) {
-      // Emit one log per target for tail worker filtering
+      // Emit one log per target using tab-separated format
+      // Format: target\tlevel\tjson_body
       loggerNames.forEach((target) => {
-        const logEntry = JSON.stringify({
-          target,
-          ...enrichedData,
-        });
-        console.log(logEntry);
+        console.log(`${target}\t${level}\t${body}`);
       });
     } else {
-      // No targets configured, just log to console
-      console.log(JSON.stringify(enrichedData));
+      // No targets configured, emit without target prefix
+      console.log(`-\t${level}\t${body}`);
     }
   };
 
   return {
-    debug: (data) => log('debug', data),
-    info: (data) => log('info', data),
-    warn: (data) => log('warn', data),
+    fatal: (data) => log('fatal', data),
     error: (data) => log('error', data),
+    warn: (data) => log('warn', data),
+    info: (data) => log('info', data),
+    verbose: (data) => log('verbose', data),
+    debug: (data) => log('debug', data),
+    silly: (data) => log('silly', data),
   };
 }

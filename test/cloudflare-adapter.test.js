@@ -29,17 +29,10 @@ describe('Cloudflare Adapter Test', () => {
     assert.strictEqual(adapter(), null);
   });
 
-  it('creates context with log property', async () => {
+  it('creates context with all log level methods', async () => {
     const logs = [];
     const originalLog = console.log;
-    console.log = (msg) => {
-      // Only capture JSON logs from our logger
-      try {
-        logs.push(JSON.parse(msg));
-      } catch {
-        // Ignore non-JSON logs
-      }
-    };
+    console.log = (msg) => logs.push(msg);
 
     try {
       const request = {
@@ -48,14 +41,17 @@ describe('Cloudflare Adapter Test', () => {
       };
 
       const mockMain = (req, ctx) => {
-        // Verify context has log property with methods
+        // Verify context has log property with all helix-log methods
         assert.ok(ctx.log);
-        assert.ok(typeof ctx.log.info === 'function');
+        assert.ok(typeof ctx.log.fatal === 'function');
         assert.ok(typeof ctx.log.error === 'function');
         assert.ok(typeof ctx.log.warn === 'function');
+        assert.ok(typeof ctx.log.info === 'function');
+        assert.ok(typeof ctx.log.verbose === 'function');
         assert.ok(typeof ctx.log.debug === 'function');
+        assert.ok(typeof ctx.log.silly === 'function');
 
-        // Test logging
+        // Test logging (no loggers configured, should use "-")
         ctx.log.info({ test: 'data' });
 
         return new Response('ok');
@@ -66,26 +62,23 @@ describe('Cloudflare Adapter Test', () => {
 
       await handleRequest({ request });
 
-      // Verify log was emitted
+      // Verify log was emitted in tab-separated format
       assert.strictEqual(logs.length, 1);
-      assert.strictEqual(logs[0].level, 'info');
-      assert.strictEqual(logs[0].test, 'data');
+      const [target, level, body] = logs[0].split('\t');
+      assert.strictEqual(target, '-');
+      assert.strictEqual(level, 'info');
+      const data = JSON.parse(body);
+      assert.strictEqual(data.test, 'data');
     } finally {
       console.log = originalLog;
       delete global.require;
     }
   });
 
-  it('includes target field when loggers configured', async () => {
+  it('dynamically uses loggers from context.attributes.loggers', async () => {
     const logs = [];
     const originalLog = console.log;
-    console.log = (msg) => {
-      try {
-        logs.push(JSON.parse(msg));
-      } catch {
-        // Ignore non-JSON logs
-      }
-    };
+    console.log = (msg) => logs.push(msg);
 
     try {
       const request = {
@@ -93,15 +86,11 @@ describe('Cloudflare Adapter Test', () => {
         cf: { colo: 'LAX' },
       };
 
-      const mockMain = async (req, ctx) => {
-        // Configure loggers
+      const mockMain = (req, ctx) => {
+        // Configure loggers dynamically
         ctx.attributes.loggers = ['coralogix', 'splunk'];
 
-        // Re-initialize logger with new configuration
-        const { createCloudflareLogger } = await import('../src/template/context-logger.js');
-        ctx.log = createCloudflareLogger(ctx.attributes.loggers, ctx);
-
-        // Log message
+        // Log message - should multiplex to both targets
         ctx.log.error('test error');
 
         return new Response('ok');
@@ -111,12 +100,22 @@ describe('Cloudflare Adapter Test', () => {
 
       await handleRequest({ request });
 
-      // Verify two logs emitted (one per target)
+      // Verify two logs emitted (one per target) in tab-separated format
       assert.strictEqual(logs.length, 2);
-      assert.strictEqual(logs[0].target, 'coralogix');
-      assert.strictEqual(logs[0].message, 'test error');
-      assert.strictEqual(logs[1].target, 'splunk');
-      assert.strictEqual(logs[1].message, 'test error');
+
+      // Parse first log
+      const [target1, level1, body1] = logs[0].split('\t');
+      assert.strictEqual(target1, 'coralogix');
+      assert.strictEqual(level1, 'error');
+      const data1 = JSON.parse(body1);
+      assert.strictEqual(data1.message, 'test error');
+
+      // Parse second log
+      const [target2, level2, body2] = logs[1].split('\t');
+      assert.strictEqual(target2, 'splunk');
+      assert.strictEqual(level2, 'error');
+      const data2 = JSON.parse(body2);
+      assert.strictEqual(data2.message, 'test error');
     } finally {
       console.log = originalLog;
       delete global.require;
