@@ -52,7 +52,6 @@ describe('CacheOverride Demo Integration Test', () => {
         '--compute-service-id', serviceID,
         '--compute-test-domain', 'possibly-working-sawfish',
         '--package.name', 'CacheDemo',
-        '--update-package', 'true',
         '--fastly-gateway', 'deploy-test.anywhere.run',
         '--fastly-service-id', '4u8SAdblhzzbXntBYCjhcK',
         '--test', '/cache-demo/',
@@ -92,7 +91,6 @@ describe('CacheOverride Demo Integration Test', () => {
         '--cloudflare-email', 'lars@trieloff.net',
         '--cloudflare-account-id', 'b4adf6cfdac0918eb6aa5ad033da0747',
         '--cloudflare-test-domain', 'rockerduck',
-        '--update-package', 'true',
         '--test', '/cache-demo/',
         '--directory', testRoot,
         '--entryFile', 'src/index.js',
@@ -133,7 +131,7 @@ describe('CacheOverride Demo Integration Test', () => {
     await builder.run();
 
     // Check that bundle was created
-    const bundlePath = path.resolve(testRoot, 'dist', 'default', 'cache-demo.zip');
+    const bundlePath = path.resolve(testRoot, 'dist', 'helix-services', 'cache-demo.zip');
     assert.ok(await fse.pathExists(bundlePath), 'Bundle should be created');
 
     const out = builder.cfg._logger.output;
