@@ -17,22 +17,32 @@ This documentation suite provides:
 
 Each API document includes **Implementation Recommendations** based on the [helix-universal adapter pattern](https://github.com/adobe/helix-universal/pull/426), categorizing functionality into three layers:
 
+### Core Principle: Only Unify What Exists on Both Platforms
+
+**Platform-specific features should NOT be wrapped or abstracted** - use native APIs directly:
+- ❌ Don't wrap: Cloudflare HTMLRewriter, Durable Objects, R2, Workers AI
+- ❌ Don't wrap: Fastly EdgeRateLimiter, PenaltyBox, Fanout
+- ✅ Instead: Use feature detection and native APIs, or external alternatives for cross-platform needs
+
+Only unify APIs that exist on **both** platforms with different implementations.
+
 ### ✅ Edge Wrapper (Core Adapter)
-Built-in functionality that all edge functions need:
+Built-in functionality that all edge functions need **and exists on both platforms**:
 - Handler pattern normalization (Fastly ↔ Cloudflare)
 - Unified `context` object (similar to helix-universal's UniversalContext)
 - Environment variables and secrets (`context.env`)
 - Logging infrastructure (`context.log`)
 - Runtime metadata (`context.runtime`, `context.invocation`)
+- Backend/origin routing (Fastly explicit vs Cloudflare implicit)
 
 ### 🔌 Plugin (Optional, Composable)
-Features that can be composed via middleware using the `.with()` pattern:
-- KV storage, cache management
-- HTML transformation, content injection
-- Geolocation, device detection, bot detection
-- Rate limiting, security headers, access control
-- Analytics, A/B testing, experimentation
-- Platform-specific features (R2, Durable Objects)
+Features that **exist on both platforms** but can be composed via middleware:
+- Cache management (SimpleCache vs Cache API)
+- Geolocation normalization (event.client.geo vs request.cf)
+- Body parsing (available on both, different patterns)
+- Security headers (both support, but application-specific)
+
+**NOT for platform-specific features** - those should use native APIs.
 
 **Example:**
 ```javascript
@@ -54,7 +64,43 @@ Application-level concerns that should be imported:
 - Standard Web APIs (already compatible, no wrapper needed)
 - Storage clients (@adobe/helix-shared-storage)
 - Third-party libraries (htmlparser2, ua-parser-js, jose)
-- HTMLRewriter polyfill for Fastly
+- Polyfills for Web Standards missing on one platform
+
+### ❌ Use Native APIs (Platform-Specific)
+
+For features that only exist on one platform, **use the native API directly** with feature detection:
+
+```javascript
+export async function main(request, context) {
+  // Use Cloudflare HTMLRewriter natively
+  if (typeof HTMLRewriter !== 'undefined') {
+    return new HTMLRewriter()
+      .on('head', {
+        element(el) {
+          el.append('<script src="/analytics.js"></script>', { html: true });
+        }
+      })
+      .transform(await fetch(request));
+  }
+
+  // Use Fastly EdgeRateLimiter natively
+  if (context.runtime.name === 'fastly') {
+    const { EdgeRateLimiter } = await import('fastly:edge-rate-limiter');
+    const limiter = new EdgeRateLimiter({ /* ... */ });
+    // ... use native API
+  }
+
+  // For cross-platform needs, use external services
+  if (needsRateLimiting) {
+    // Use external rate limiting service (Redis, Upstash, etc.)
+    await externalRateLimiter.check(clientIP);
+  }
+}
+```
+
+**Don't create plugins or wrappers for:**
+- Cloudflare: HTMLRewriter, Durable Objects, R2, Workers AI, WebSocketPair
+- Fastly: EdgeRateLimiter, PenaltyBox, Fanout, CacheOverride callbacks
 
 ## Document Index
 
@@ -62,15 +108,15 @@ Each document includes platform comparisons, unification strategies, and **imple
 
 | Document | Description | Key APIs Covered | Implementation Focus |
 |----------|-------------|------------------|---------------------|
-| [**Request/Response/Fetch**](./request-response.md) | Core HTTP primitives and handler patterns | Request, Response, Fetch, Headers, FetchEvent | ✅ Wrapper: Handler normalization, backend routing<br>🔌 Plugin: Geo data, cache control |
-| [**Cache & Storage**](./cache-storage.md) | Caching and persistent storage APIs | SimpleCache, KVStore, Workers KV, R2, Durable Objects | ✅ Wrapper: Storage bindings, secrets<br>🔌 Plugin: KV, cache, R2 |
-| [**HTML Rewriter**](./html-rewriter.md) | Streaming HTML transformation | HTMLRewriter, DOM manipulation, content injection | ✅ Wrapper: Stream handling<br>🔌 Plugin: HTML transforms, analytics<br>📦 Polyfill: htmlparser2 |
-| [**Cryptography & Encoding**](./crypto-encoding.md) | Web Crypto API and data encoding | SubtleCrypto, TextEncoder/Decoder, atob/btoa | ✅ No wrapper needed (Web Standard)<br>🔌 Plugin: JWT, hashing utilities |
-| [**WebSocket & Streaming**](./websocket-streaming.md) | Real-time communication and streams | WebSocketPair, Fanout, ReadableStream, TransformStream | ✅ Wrapper: Standard streams<br>🔌 Plugin: WebSocket abstraction, SSE |
-| [**Logging**](./logging.md) | Console and structured logging | Console API, log endpoints, observability | ✅ Wrapper: context.log (helix-log)<br>🔌 Plugin: Structured logging, external endpoints |
-| [**Security & Rate Limiting**](./security-ratelimit.md) | Access control and throttling | EdgeRateLimiter, PenaltyBox, cache purging | 🔌 Plugin: Rate limiting, ACL, security headers, cache purging |
-| [**Environment & Geolocation**](./environment-geo.md) | Runtime environment and geo data | Client metadata, geo lookup, environment variables | ✅ Wrapper: context.env, runtime info<br>🔌 Plugin: Geo, device, bot detection |
-| [**Experimental/Additional**](./experimental-additional.md) | Platform-specific and experimental features | Device detection, bot management, advanced features | ✅ Wrapper: Standard Web APIs<br>🔌 Plugin: AI/ML, Durable Objects (platform-specific) |
+| [**Request/Response/Fetch**](./request-response.md) | Core HTTP primitives and handler patterns | Request, Response, Fetch, Headers, FetchEvent | ✅ Wrapper: Handler normalization, backend routing<br>🔌 Plugin: Cache control (both platforms) |
+| [**Cache & Storage**](./cache-storage.md) | Caching and persistent storage APIs | SimpleCache, KVStore, Workers KV, R2, Durable Objects | ✅ Wrapper: Storage bindings, secrets<br>🔌 Plugin: KV (both), Cache (both)<br>❌ Native: R2, Durable Objects |
+| [**HTML Rewriter**](./html-rewriter.md) | Streaming HTML transformation | HTMLRewriter, DOM manipulation, content injection | ❌ Native: Use Cloudflare HTMLRewriter directly<br>📦 Polyfill: htmlparser2 on Fastly if needed |
+| [**Cryptography & Encoding**](./crypto-encoding.md) | Web Crypto API and data encoding | SubtleCrypto, TextEncoder/Decoder, atob/btoa | ✅ No wrapper needed (Web Standard)<br>📦 Import: JWT libraries, additional algorithms |
+| [**WebSocket & Streaming**](./websocket-streaming.md) | Real-time communication and streams | WebSocketPair, Fanout, ReadableStream, TransformStream | ✅ Wrapper: Standard streams<br>❌ Native: WebSocketPair (CF), Fanout (Fastly) |
+| [**Logging**](./logging.md) | Console and structured logging | Console API, log endpoints, observability | ✅ Wrapper: context.log (helix-log)<br>🔌 Plugin: External log shipping (both) |
+| [**Security & Rate Limiting**](./security-ratelimit.md) | Access control and throttling | EdgeRateLimiter, PenaltyBox, cache purging | ❌ Native: EdgeRateLimiter (Fastly), CF Rate Limiting<br>🔌 Plugin: Security headers (both) |
+| [**Environment & Geolocation**](./environment-geo.md) | Runtime environment and geo data | Client metadata, geo lookup, environment variables | ✅ Wrapper: context.env, runtime info<br>🔌 Plugin: Geo normalization (both platforms) |
+| [**Experimental/Additional**](./experimental-additional.md) | Platform-specific and experimental features | Device detection, bot management, advanced features | ✅ Wrapper: Standard Web APIs<br>❌ Native: Workers AI, Durable Objects (CF only) |
 
 ## Platform Overview
 
