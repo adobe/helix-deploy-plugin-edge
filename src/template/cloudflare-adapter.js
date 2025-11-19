@@ -49,8 +49,8 @@ export async function handleRequest(event) {
     };
 
     // Initialize logger after context is created
-    // Logger configuration can be set via context.attributes.loggers
-    context.log = createCloudflareLogger(context.attributes.loggers, context);
+    // Logger dynamically checks context.attributes.loggers on each call
+    context.log = createCloudflareLogger(context);
 
     return await main(request, context);
   } catch (e) {
