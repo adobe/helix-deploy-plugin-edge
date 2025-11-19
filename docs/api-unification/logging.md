@@ -771,3 +771,82 @@ Both Fastly Compute and Cloudflare Workers provide robust logging capabilities, 
 - **Log Viewing**: Both support CLI tailing (`fastly log-tail` vs `wrangler tail`)
 
 The unified adapter patterns provided enable consistent logging behavior across both platforms while leveraging platform-specific optimizations.
+
+---
+
+## Implementation Recommendations
+
+Based on the helix-universal adapter pattern (see [PR #426](https://github.com/adobe/helix-universal/pull/426)), here are recommendations for implementing logging in an edge deployment plugin:
+
+### Edge Wrapper Implementation
+
+✅ **Edge Wrapper** - Built into the core adapter:
+
+1. **Unified Logger (context.log)** - Similar to helix-universal's `context.log`
+   - Provide `context.log` compatible with [@adobe/helix-log](https://github.com/adobe/helix-log)
+   - Methods: `log()`, `fatal()`, `error()`, `warn()`, `info()`, `debug()`, `verbose()`, `silly()`, `trace()`
+   - **Rationale**: All functions need logging; consistent interface across platforms
+   - **Example**: `context.log.info('Processing request', { url: request.url })`
+
+2. **Automatic Context Enrichment**
+   - Add invocation metadata to all log entries (requestId, function name, version)
+   - Add platform information (runtime, region)
+   - **Rationale**: Essential for debugging and tracing
+   - **Example**: Logs automatically include `{ invocationId, funcName, runtime }`
+
+3. **Console API Normalization**
+   - Wrap `console.log/error/warn` to ensure consistent behavior
+   - Handle structured logging differences (JSON auto-indexing on Cloudflare)
+   - **Rationale**: Transparent console.log usage for developers
+
+### Plugin Implementation
+
+🔌 **Plugin** - Optional, composable features:
+
+1. **Structured Logging Plugin** - `@adobe/helix-edge-structured-logging`
+   - Enhanced structured logging with fields/formatters
+   - Log level filtering
+   - Performance metrics tracking
+   - **Example**:
+     ```javascript
+     export const handler = edge
+       .with(structuredLoggingPlugin, { level: 'info', fields: { service: 'api' } })
+       .wrap(async (request, context) => {
+         context.log.info('Request received', { method: request.method });
+       });
+     ```
+
+2. **External Logging Plugin** - `@adobe/helix-edge-external-logging`
+   - Send logs to external endpoints (Datadog, Splunk, etc.)
+   - Buffer and batch log entries for efficiency
+   - **Rationale**: Not all functions need external logging; opt-in
+   - **Example**: `@adobe/helix-edge-datadog`, `@adobe/helix-edge-splunk`
+
+3. **Error Tracking Plugin** - `@adobe/helix-edge-error-tracking`
+   - Integration with error tracking services (Sentry, Bugsnag)
+   - Automatic error capture and enrichment
+   - **Example**:
+     ```javascript
+     export const handler = edge
+       .with(errorTrackingPlugin, { sentryDsn: process.env.SENTRY_DSN })
+       .wrap(async (request, context) => {
+         // Errors automatically captured
+       });
+     ```
+
+### Import/Polyfill Implementation
+
+📦 **Import** - Library-based functionality:
+
+1. **@adobe/helix-log** - Import directly
+   - Full-featured logging library
+   - Used as the basis for `context.log`
+   - **Example**: `import { SimpleInterface } from '@adobe/helix-log'`
+
+2. **Log Formatters** - Standard libraries
+   - JSON formatting, pretty printing
+   - **Example**: `pino`, `winston` (if needed)
+
+3. **APM Integration** - Application-specific
+   - New Relic, Datadog APM agents
+   - **Example**: Import and initialize in function code

@@ -665,3 +665,31 @@ async function compressData(data) {
 - Web Crypto API: https://www.w3.org/TR/WebCryptoAPI/
 - Encoding Standard: https://encoding.spec.whatwg.org/
 - Compression Streams: https://wicg.github.io/compression/
+
+---
+
+## Implementation Recommendations
+
+Based on the helix-universal adapter pattern (see [PR #426](https://github.com/adobe/helix-universal/pull/426)):
+
+### Edge Wrapper Implementation
+
+✅ **Edge Wrapper** - No custom implementation needed:
+- **Web Crypto API** - Use platform native `crypto.subtle` (already Web Standard)
+- **TextEncoder/TextDecoder** - Use platform native (already Web Standard)
+- **atob/btoa** - Use platform native (already Web Standard)
+- **Rationale**: These are standard Web APIs with high compatibility across both platforms
+
+### Plugin Implementation
+
+🔌 **Plugin** - Optional features:
+- **JWT/Token Handling** - `@adobe/helix-edge-jwt` plugin for common auth patterns
+- **Hashing Utilities** - `@adobe/helix-edge-hash` for request signing, ETags
+- **Compression** - `@adobe/helix-edge-compress` for response compression
+
+### Import/Polyfill Implementation
+
+📦 **Import** - Application-level concerns:
+- **jose** library for JWT operations
+- **crypto-js** for additional algorithms
+- Standard compression libraries for body compression

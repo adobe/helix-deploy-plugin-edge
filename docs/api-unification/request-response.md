@@ -1057,6 +1057,143 @@ describe('UnifiedRequest', () => {
 
 ---
 
+## Implementation Recommendations
+
+Based on the helix-universal adapter pattern (see [PR #426](https://github.com/adobe/helix-universal/pull/426)), here are recommendations for implementing Request/Response/Fetch APIs in an edge deployment plugin:
+
+### Edge Wrapper Implementation
+
+The following functionality should be **built into the edge wrapper itself** as core adapter features:
+
+1. **Handler Pattern Normalization** ✅ **Edge Wrapper**
+   - Convert between Fastly's `addEventListener('fetch', ...)` and Cloudflare's `export default { fetch }`
+   - Create unified `UnifiedContext` object similar to helix-universal's `context`
+   - Standardize event/context parameters across platforms
+   - **Rationale**: This is foundational infrastructure that must be consistent across all edge functions
+
+2. **Request/Response Wrapping** ✅ **Edge Wrapper**
+   - Basic Request/Response object handling (already Web Standard)
+   - Platform detection and initialization
+   - Error handling and logging integration
+   - **Rationale**: Core HTTP primitives should be transparent to function authors
+
+3. **Backend/Origin Selection** ✅ **Edge Wrapper**
+   - Unified `fetch()` wrapper that handles platform-specific backend routing
+   - Backend registry and configuration management
+   - **Rationale**: Backend routing is platform-specific and should be abstracted by the wrapper
+
+### Plugin Implementation
+
+The following functionality should be implemented as **optional plugins** that can be composed:
+
+1. **Request Metadata Enhancement** 🔌 **Plugin**
+   - Geolocation data normalization (wrap `event.client.geo` vs `request.cf`)
+   - Client metadata extraction and standardization
+   - TLS/security metadata enrichment
+   - **Rationale**: Not all functions need this data; plugins can opt-in
+   - **Example**: `@adobe/helix-edge-geo` plugin adds `context.geo` with unified interface
+
+2. **Cache Control** 🔌 **Plugin**
+   - Cache key customization and normalization
+   - TTL management across platforms
+   - Surrogate key handling (Fastly) and Cache-Tags (Cloudflare)
+   - **Rationale**: Caching strategies vary by application; should be composable
+   - **Example**: `@adobe/helix-edge-cache` plugin provides unified cache control
+
+3. **Headers Manipulation** 🔌 **Plugin**
+   - Standard header transformations (security headers, CORS, etc.)
+   - Header validation and sanitization
+   - **Rationale**: Header policies are application-specific
+   - **Example**: `@adobe/helix-shared-headers` plugin for common header operations
+
+### Import/Polyfill Implementation
+
+The following functionality should be provided as **imports or polyfills**:
+
+1. **Standard Web APIs** 📦 **Import**
+   - `Request`, `Response`, `Headers`, `URL`, `URLSearchParams`
+   - These are already Web Standard APIs available on both platforms
+   - **Rationale**: No abstraction needed; use platform natives
+   - **Example**: Direct usage without wrappers
+
+2. **Fetch Enhancements** 📦 **Import**
+   - `@adobe/fetch` for enhanced fetch capabilities
+   - Retry logic, timeout handling, connection pooling
+   - **Rationale**: Application-level concerns, not platform abstraction
+   - **Example**: Import and use directly in function code
+
+3. **Body Parsing** 📦 **Import**
+   - JSON/form data/multipart parsing
+   - **Rationale**: Standard functionality, should be library-based
+   - **Example**: Similar to helix-universal's `@adobe/helix-shared-body-data`
+
+### Context Object Design
+
+Following helix-universal's pattern, the edge wrapper should provide a `UnifiedContext` object with:
+
+```javascript
+interface UnifiedContext {
+  // Platform information (wrapper)
+  runtime: {
+    name: 'fastly' | 'cloudflare';
+    region: string;
+  };
+
+  // Function metadata (wrapper)
+  func: {
+    name: string;
+    version: string;
+    package: string;
+  };
+
+  // Invocation details (wrapper)
+  invocation: {
+    id: string;
+    deadline: number;
+    requestId: string;
+  };
+
+  // Environment variables (wrapper)
+  env: Record<string, string>;
+
+  // Logger (wrapper/plugin)
+  log: Logger;
+
+  // Attributes for plugin data (wrapper)
+  attributes: Record<string, any>;
+
+  // Geo data (plugin: @adobe/helix-edge-geo)
+  geo?: UnifiedGeo;
+
+  // Cache control (plugin: @adobe/helix-edge-cache)
+  cache?: UnifiedCache;
+
+  // Storage (plugin: @adobe/helix-edge-storage)
+  storage?: UnifiedStorage;
+}
+```
+
+### Composability Pattern
+
+Similar to helix-universal's `wrap().with(plugin)` pattern, the edge wrapper should support:
+
+```javascript
+import { edge } from '@adobe/helix-deploy-plugin-edge';
+import geoPlugin from '@adobe/helix-edge-geo';
+import cachePlugin from '@adobe/helix-edge-cache';
+
+export const handler = edge
+  .with(geoPlugin)
+  .with(cachePlugin, { ttl: 3600 })
+  .wrap(async (request, context) => {
+    // context.geo - from plugin
+    // context.cache - from plugin
+    return new Response('Hello from ' + context.geo.countryCode);
+  });
+```
+
+---
+
 ## Additional Resources
 
 ### Fastly Documentation

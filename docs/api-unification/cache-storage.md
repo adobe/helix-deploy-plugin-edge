@@ -1024,6 +1024,230 @@ export default {
 
 ---
 
+## Implementation Recommendations
+
+Based on the helix-universal adapter pattern (see [PR #426](https://github.com/adobe/helix-universal/pull/426)), here are recommendations for implementing Cache and Storage APIs in an edge deployment plugin:
+
+### Edge Wrapper Implementation
+
+The following functionality should be **built into the edge wrapper itself** as core adapter features:
+
+1. **Storage Binding Initialization** ✅ **Edge Wrapper**
+   - Platform-specific storage initialization (Fastly KVStore names vs Cloudflare bindings)
+   - Environment variable handling (`context.env`)
+   - **Rationale**: Storage access patterns differ fundamentally between platforms
+   - **Example**: Wrapper converts Cloudflare `env.MY_KV` bindings to Fastly `new KVStore('MY_KV')`
+
+2. **Config/Secrets Access** ✅ **Edge Wrapper**
+   - Unified `context.env` for environment variables and secrets
+   - Automatic secrets loading from platform-specific managers
+   - **Rationale**: Similar to helix-universal's built-in secrets plugins (AWS, Google)
+   - **Example**: Load from Fastly ConfigStore/SecretStore or Cloudflare environment variables
+
+3. **Storage Presigned URLs** ✅ **Edge Wrapper**
+   - `context.storage.presignURL()` method (similar to helix-universal)
+   - Platform-specific implementation (S3, R2, GCS)
+   - **Rationale**: Core storage operation that should work consistently
+   - **Example**: Generate presigned URLs for uploading/downloading from cloud storage
+
+### Plugin Implementation
+
+The following functionality should be implemented as **optional plugins** that can be composed:
+
+1. **KV Storage** 🔌 **Plugin**
+   - Unified KV store interface (`UnifiedKVStore`)
+   - Cross-platform get/put/delete operations
+   - **Rationale**: Not all edge functions need KV storage; opt-in via plugin
+   - **Example**: `@adobe/helix-edge-kv` plugin adds `context.kv` with unified interface
+   - **Usage**:
+     ```javascript
+     export const handler = edge
+       .with(kvPlugin, { store: 'MY_STORE' })
+       .wrap(async (request, context) => {
+         const data = await context.kv.get('key');
+         await context.kv.put('key', 'value');
+       });
+     ```
+
+2. **Cache Management** 🔌 **Plugin**
+   - Unified cache interface (`UnifiedCache`)
+   - Cache key generation and normalization
+   - TTL management across platforms
+   - **Rationale**: Caching strategies are application-specific
+   - **Example**: `@adobe/helix-edge-cache` plugin with getOrSet pattern
+   - **Usage**:
+     ```javascript
+     export const handler = edge
+       .with(cachePlugin, { defaultTTL: 3600 })
+       .wrap(async (request, context) => {
+         const data = await context.cache.getOrSet('key', async () => {
+           return await fetchExpensiveData();
+         }, 3600);
+       });
+     ```
+
+3. **Advanced Storage** 🔌 **Plugin**
+   - R2/S3 object storage access (Cloudflare-specific or external)
+   - Durable Objects coordination (Cloudflare-only)
+   - Large object handling
+   - **Rationale**: Platform-specific features require conditional plugins
+   - **Example**: `@adobe/helix-edge-r2` plugin for Cloudflare-only deployments
+
+### Import/Polyfill Implementation
+
+The following functionality should be provided as **imports or polyfills**:
+
+1. **External Storage Clients** 📦 **Import**
+   - `@adobe/helix-shared-storage` for S3/R2/Azure/GCS abstraction
+   - Platform-agnostic storage operations
+   - **Rationale**: Application-level storage concerns
+   - **Example**: Import and configure directly in function code
+   - **Usage**:
+     ```javascript
+     import { createR2Storage } from '@adobe/helix-shared-storage';
+
+     export async function main(request, context) {
+       const storage = createR2Storage({
+         bucket: context.env.R2_BUCKET,
+         credentials: context.env.R2_CREDENTIALS,
+       });
+       await storage.put('key', 'value');
+     }
+     ```
+
+2. **Cache Utilities** 📦 **Import**
+   - Cache key generation helpers
+   - ETag/If-None-Match handling
+   - Cache-Control header utilities
+   - **Rationale**: Standard HTTP caching, not platform-specific
+   - **Example**: `@adobe/helix-shared-cache-utils` library
+
+3. **Data Serialization** 📦 **Import**
+   - JSON/MessagePack/Protocol Buffers serialization
+   - Compression utilities (gzip, brotli)
+   - **Rationale**: Application-level concerns
+   - **Example**: Standard JavaScript libraries
+
+### Context Storage API
+
+Following helix-universal's `context.storage.presignURL()` pattern, the edge wrapper should provide:
+
+```javascript
+interface UnifiedContext {
+  // Environment variables and secrets (wrapper)
+  env: Record<string, string>;
+
+  // Presigned URL generation (wrapper)
+  storage: {
+    presignURL(
+      bucket: string,
+      path: string,
+      options?: {
+        contentType?: string;
+        contentDisposition?: string;
+        method?: 'GET' | 'PUT';
+        expires?: number;
+      }
+    ): Promise<string>;
+  };
+
+  // KV store (plugin: @adobe/helix-edge-kv)
+  kv?: {
+    get(key: string, options?: { type?: 'text' | 'json' | 'arrayBuffer' }): Promise<any>;
+    put(key: string, value: string | ArrayBuffer, options?: { ttl?: number }): Promise<void>;
+    delete(key: string): Promise<void>;
+    list?(options?: { prefix?: string; limit?: number }): Promise<{ keys: string[] }>;
+  };
+
+  // Cache (plugin: @adobe/helix-edge-cache)
+  cache?: {
+    get(key: string): Promise<any | null>;
+    getOrSet(key: string, fetchFn: () => Promise<any>, ttl: number): Promise<any>;
+    purge(key: string): Promise<void>;
+  };
+
+  // Attributes for caching initialized storage clients (wrapper)
+  attributes: {
+    storage?: any; // Cached storage clients
+    [key: string]: any;
+  };
+}
+```
+
+### Secrets Plugin Design
+
+Similar to helix-universal's AWS/Google secrets plugins, the edge wrapper should include built-in secrets loading:
+
+**Fastly Secrets:**
+```javascript
+// Automatically loaded by wrapper
+// From: Fastly SecretStore (async) or ConfigStore (sync)
+context.env.API_KEY // Loaded from /helix-deploy/{package}/secrets
+context.env.DATABASE_URL
+```
+
+**Cloudflare Secrets:**
+```javascript
+// Automatically available via bindings
+context.env.API_KEY // From environment variables/secrets
+context.env.DATABASE_URL
+```
+
+### Storage Caching Pattern
+
+Following helix-universal's `context.attributes` pattern for caching initialized resources:
+
+```javascript
+// Plugin wrapper
+function storagePlugin(options) {
+  return async (request, context, next) => {
+    // Initialize once and cache in attributes
+    if (!context.attributes.storageClient) {
+      const { createStorage } = await import('@adobe/helix-shared-storage');
+      context.attributes.storageClient = createStorage({
+        bucket: context.env.STORAGE_BUCKET,
+        region: context.env.AWS_REGION,
+      });
+    }
+
+    // Make available via context.storage
+    context.storage.bucket = context.attributes.storageClient;
+
+    return next(request, context);
+  };
+}
+```
+
+### Platform-Specific Features
+
+Some features are inherently platform-specific and should be handled via conditional plugins:
+
+**Cloudflare-Only Features:**
+- R2 Object Storage → `@adobe/helix-edge-r2` plugin
+- Durable Objects → `@adobe/helix-edge-durable` plugin
+- Workers KV metadata → Extended KV plugin options
+
+**Fastly-Only Features:**
+- Global cache purge → Extended cache plugin with surrogate keys
+- CacheOverride callbacks → Extended fetch wrapper
+
+**Graceful Degradation:**
+```javascript
+export const handler = edge
+  .with(r2Plugin, { required: false }) // Skip if not Cloudflare
+  .wrap(async (request, context) => {
+    if (context.r2) {
+      // Use R2 if available
+      await context.r2.put('key', 'value');
+    } else {
+      // Fallback to external storage
+      await externalStorage.put('key', 'value');
+    }
+  });
+```
+
+---
+
 ## References
 
 ### Fastly Documentation

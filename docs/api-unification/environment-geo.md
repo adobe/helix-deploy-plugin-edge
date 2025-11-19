@@ -960,3 +960,48 @@ The adapters bridge the fundamental architectural differences:
 - Fastly's native device detection vs. Cloudflare's lack thereof
 
 By abstracting these differences, developers can write portable edge computing code that runs on both platforms with minimal platform-specific logic.
+
+---
+
+## Implementation Recommendations
+
+Based on the helix-universal adapter pattern (see [PR #426](https://github.com/adobe/helix-universal/pull/426)):
+
+### Edge Wrapper Implementation
+
+✅ **Edge Wrapper** - Built into core adapter:
+
+1. **context.env** - Environment variables (like helix-universal)
+   - Unified access to process.env, secrets, platform-specific config
+   - **Rationale**: Core functionality all functions need
+
+2. **context.runtime** - Platform information
+   - `{ name: 'fastly'|'cloudflare', region: string }`
+   - **Rationale**: Functions need to know their runtime environment
+
+3. **context.invocation** - Request metadata
+   - `{ id, requestId, deadline }`
+   - **Rationale**: Essential for logging and tracing
+
+### Plugin Implementation
+
+🔌 **Plugin** - Optional features:
+
+1. **Geolocation** - `@adobe/helix-edge-geo`
+   - Unified `context.geo` interface (wrap `event.client.geo` vs `request.cf`)
+   - **Example**: `context.geo.countryCode`, `context.geo.city`
+
+2. **Device Detection** - `@adobe/helix-edge-device`
+   - User-agent parsing and device classification
+   - **Example**: `context.device.{ type, os, browser }`
+
+3. **Bot Detection** - `@adobe/helix-edge-bot`
+   - Bot/crawler identification
+   - **Example**: `context.bot.isBot`, `context.bot.category`
+
+### Import/Polyfill Implementation
+
+📦 **Import** - Library-based:
+- **ua-parser-js** for user-agent parsing
+- **geoip-lite** for offline geo lookups (if needed)
+- **isbot** for bot detection

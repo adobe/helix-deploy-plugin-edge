@@ -622,3 +622,45 @@ const response = new Response(body, {
 - Cache-Tag Purging: https://developers.cloudflare.com/cache/how-to/purge-cache/purge-by-tags/
 - Security Headers: https://developers.cloudflare.com/workers/examples/security-headers/
 - Cache Purge API: https://developers.cloudflare.com/api/resources/cache/methods/purge/
+
+---
+
+## Implementation Recommendations
+
+Based on the helix-universal adapter pattern (see [PR #426](https://github.com/adobe/helix-universal/pull/426)):
+
+### Edge Wrapper Implementation
+
+✅ **Edge Wrapper** - Minimal security infrastructure:
+- **Basic request validation** - Standard HTTP security checks
+- **Rationale**: All functions need basic security
+
+### Plugin Implementation
+
+🔌 **Plugin** - Security features as composable middleware:
+
+1. **Rate Limiting** - `@adobe/helix-edge-ratelimit`
+   - Unified interface over Fastly EdgeRateLimiter vs external rate limiting
+   - **Example**: IP-based, token-based rate limiting
+   - **Rationale**: Not all functions need rate limiting; platform-specific implementations
+
+2. **Cache Purging** - `@adobe/helix-edge-purge`
+   - Unified cache purge API (Fastly surrogate keys vs Cloudflare Cache-Tags)
+   - **Example**: `context.purge.bySurrogateKey('user-123')`
+   - **Rationale**: Application-specific caching strategies
+
+3. **Access Control** - `@adobe/helix-edge-acl`
+   - IP allowlisting/denylisting
+   - Geographic restrictions
+   - **Example**: Block traffic from specific countries or IPs
+
+4. **Security Headers** - `@adobe/helix-edge-security-headers`
+   - Automatic security header injection (CSP, HSTS, X-Frame-Options)
+   - **Example**: Configure once, apply to all responses
+
+### Import/Polyfill Implementation
+
+📦 **Import** - Application-level:
+- **helmet** equivalent for edge security headers
+- **rate-limiter-flexible** for custom rate limiting logic
+- JWT validation libraries for authentication

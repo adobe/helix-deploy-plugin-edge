@@ -849,3 +849,40 @@ interface ExecutionContext {
 - Compatibility Dates: https://developers.cloudflare.com/workers/configuration/compatibility-dates/
 - Streams: https://developers.cloudflare.com/workers/runtime-apis/streams/
 - Bindings: https://developers.cloudflare.com/workers/runtime-apis/bindings/
+
+---
+
+## Implementation Recommendations
+
+Based on the helix-universal adapter pattern (see [PR #426](https://github.com/adobe/helix-universal/pull/426)):
+
+### Edge Wrapper Implementation
+
+✅ **Edge Wrapper** - Standard Web APIs:
+- **Performance API** - Use platform native when available
+- **WebAssembly** - Use platform native
+- **Rationale**: Standard Web Platform APIs
+
+### Plugin Implementation
+
+🔌 **Plugin** - Experimental and platform-specific:
+
+1. **AI/ML Integration** - `@adobe/helix-edge-ai` (Cloudflare-only)
+   - Workers AI integration
+   - **Rationale**: Cloudflare-specific feature
+   - **Example**: Conditional plugin that's skipped on Fastly
+
+2. **Durable Objects** - `@adobe/helix-edge-durable` (Cloudflare-only)
+   - Coordination and state management
+   - **Rationale**: Unique to Cloudflare, no Fastly equivalent
+
+3. **RPC/Service Bindings** - `@adobe/helix-edge-rpc`
+   - Inter-function communication
+   - **Rationale**: Platform-specific patterns
+
+### Import/Polyfill Implementation
+
+📦 **Import** - Application-level:
+- **@tensorflow/tfjs** for ML inference
+- **onnxruntime-web** for WASM-based ML
+- Custom WASM modules for specialized processing

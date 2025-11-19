@@ -744,3 +744,39 @@ The fundamental architectural difference between Fastly Compute (handoff model) 
 5. **Use adapter patterns** to hide platform-specific implementations
 
 For streaming APIs, the differences are smaller and can be unified more easily. The main concern is ensuring that platform-specific extensions (like Cloudflare's `FixedLengthStream`) have reasonable fallbacks on other platforms.
+
+---
+
+## Implementation Recommendations
+
+Based on the helix-universal adapter pattern (see [PR #426](https://github.com/adobe/helix-universal/pull/426)):
+
+### Edge Wrapper Implementation
+
+✅ **Edge Wrapper** - Core streaming support:
+- **ReadableStream/WritableStream/TransformStream** - Use platform natives (Web Standard)
+- **Rationale**: Standard Web Streams API with high compatibility
+
+### Plugin Implementation
+
+🔌 **Plugin** - Platform-specific features:
+
+1. **WebSocket Support** - `@adobe/helix-edge-websocket`
+   - Abstraction over Cloudflare WebSocketPair vs Fastly Fanout
+   - **Rationale**: Highly platform-specific, requires conditional logic
+   - **Example**: Gracefully degrade or use external WebSocket service
+
+2. **Server-Sent Events** - `@adobe/helix-edge-sse`
+   - SSE support for real-time updates
+   - **Rationale**: Application-specific streaming pattern
+
+3. **Streaming Responses** - `@adobe/helix-edge-stream`
+   - Stream processing utilities (compression, chunking, transforms)
+   - **Rationale**: Common streaming operations
+
+### Import/Polyfill Implementation
+
+📦 **Import** - Application-level:
+- **ws** library for external WebSocket connections
+- **eventsource** for SSE client
+- Stream utilities for custom transformations

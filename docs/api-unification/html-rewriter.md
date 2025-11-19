@@ -1174,6 +1174,289 @@ const rewriter = new UnifiedHTMLRewriter(PLATFORM)
 
 ---
 
+## Implementation Recommendations
+
+Based on the helix-universal adapter pattern (see [PR #426](https://github.com/adobe/helix-universal/pull/426)), here are recommendations for implementing HTML Rewriter functionality in an edge deployment plugin:
+
+### Edge Wrapper Implementation
+
+The following functionality should be **built into the edge wrapper itself** as core adapter features:
+
+1. **Response Stream Handling** ✅ **Edge Wrapper**
+   - Detect HTML responses automatically (Content-Type check)
+   - Provide hooks for response transformation
+   - Handle streaming body transformations
+   - **Rationale**: Core response handling is fundamental to all edge functions
+   - **Example**: Wrapper provides `context.transformResponse()` method
+
+2. **Platform Detection for HTML Rewriter** ✅ **Edge Wrapper**
+   - Detect if native HTMLRewriter is available (Cloudflare)
+   - Gracefully degrade to fallback implementation (Fastly)
+   - **Rationale**: Optimal performance when native APIs are available
+   - **Example**: Use Cloudflare's Rust-based parser when available, fall back to JS parser
+
+### Plugin Implementation
+
+The following functionality should be implemented as **optional plugins** that can be composed:
+
+1. **HTML Transformation** 🔌 **Plugin**
+   - Unified `UnifiedHTMLRewriter` interface
+   - CSS selector-based element matching
+   - Content injection (analytics, scripts, meta tags)
+   - **Rationale**: Not all edge functions need HTML transformation; opt-in via plugin
+   - **Example**: `@adobe/helix-edge-html` plugin adds `context.html.rewriter()`
+   - **Usage**:
+     ```javascript
+     export const handler = edge
+       .with(htmlPlugin)
+       .wrap(async (request, context) => {
+         const response = await fetch(request);
+
+         return context.html.rewriter()
+           .on('head', {
+             element(el) {
+               el.append('<script src="/analytics.js"></script>', { html: true });
+             }
+           })
+           .transform(response);
+       });
+     ```
+
+2. **Common Transformations** 🔌 **Plugin**
+   - Pre-built transformation plugins for common use cases:
+     - Analytics injection → `@adobe/helix-edge-analytics`
+     - CSP nonce injection → `@adobe/helix-edge-csp`
+     - Link rewriting → `@adobe/helix-edge-links`
+     - Image optimization → `@adobe/helix-edge-images`
+   - **Rationale**: Reusable transformations reduce boilerplate
+   - **Example**:
+     ```javascript
+     export const handler = edge
+       .with(analyticsPlugin, { trackingId: 'UA-XXXXX' })
+       .with(cspPlugin, { generateNonce: true })
+       .with(linkRewriterPlugin, { upgradeHttp: true })
+       .wrap(async (request, context) => {
+         // Transformations applied automatically
+         return fetch(request);
+       });
+     ```
+
+3. **A/B Testing and Personalization** 🔌 **Plugin**
+   - Variant selection and content replacement
+   - User segmentation and targeting
+   - Experiment tracking
+   - **Rationale**: Complex feature requiring state management
+   - **Example**: `@adobe/helix-edge-experimentation` plugin
+   - **Usage**:
+     ```javascript
+     export const handler = edge
+       .with(experimentationPlugin, {
+         experiments: {
+           'cta-button': {
+             variants: ['control', 'variant-a', 'variant-b'],
+             selector: '.cta-button',
+           }
+         }
+       })
+       .wrap(async (request, context) => {
+         // Variant applied automatically via HTML transformation
+         return fetch(request);
+       });
+     ```
+
+### Import/Polyfill Implementation
+
+The following functionality should be provided as **imports or polyfills**:
+
+1. **HTML Parser Libraries** 📦 **Import/Polyfill**
+   - `htmlparser2` for Fastly (JavaScript-based parser)
+   - Polyfill HTMLRewriter API on Fastly
+   - **Rationale**: Fastly lacks native HTMLRewriter; polyfill provides compatibility
+   - **Example**: `@adobe/helix-edge-html-polyfill` provides HTMLRewriter on Fastly
+   - **Usage**:
+     ```javascript
+     import '@adobe/helix-edge-html-polyfill'; // Polyfills HTMLRewriter on Fastly
+
+     export async function main(request, context) {
+       const response = await fetch(request);
+
+       return new HTMLRewriter()
+         .on('head', {
+           element(el) {
+             el.append('<meta name="generator" content="Helix">');
+           }
+         })
+         .transform(response);
+     }
+     ```
+
+2. **CSS Selector Utilities** 📦 **Import**
+   - CSS selector parsing and matching
+   - Element traversal helpers
+   - **Rationale**: Useful for custom transformations
+   - **Example**: `css-select` or `cheerio` for server-side DOM manipulation
+
+3. **Template Engines** 📦 **Import**
+   - For more complex HTML generation
+   - Mustache, Handlebars, etc.
+   - **Rationale**: Application-level concerns
+   - **Example**: Import and use directly in transformation logic
+
+### Context HTML API
+
+The edge wrapper should provide HTML transformation hooks in the context:
+
+```javascript
+interface UnifiedContext {
+  // HTML transformation utilities (plugin: @adobe/helix-edge-html)
+  html?: {
+    // Create a new rewriter
+    rewriter(): UnifiedHTMLRewriter;
+
+    // Detect if response is HTML
+    isHtmlResponse(response: Response): boolean;
+
+    // Apply transformation to response
+    transform(response: Response, transformer: (rewriter: UnifiedHTMLRewriter) => void): Response;
+  };
+
+  // A/B testing and experiments (plugin: @adobe/helix-edge-experimentation)
+  experiment?: {
+    variant(experimentName: string): string;
+    track(experimentName: string, event: string): void;
+  };
+
+  // CSP nonce generation (plugin: @adobe/helix-edge-csp)
+  csp?: {
+    nonce: string;
+    addNonce(element: Element): void;
+  };
+}
+```
+
+### Performance Considerations
+
+HTML transformation can be expensive; the wrapper should provide optimization features:
+
+1. **Conditional Transformation** ✅ **Edge Wrapper**
+   - Only transform HTML responses (check Content-Type)
+   - Skip transformation for non-HTML or already-transformed responses
+   - **Example**:
+     ```javascript
+     async function transformResponse(response, context) {
+       if (!context.html.isHtmlResponse(response)) {
+         return response; // Pass through non-HTML
+       }
+       return applyTransformations(response, context);
+     }
+     ```
+
+2. **Streaming Optimization** ✅ **Edge Wrapper**
+   - Use native HTMLRewriter on Cloudflare (Rust-based, fast)
+   - Use efficient streaming parser on Fastly
+   - Never buffer entire HTML document
+   - **Example**: Wrapper automatically selects optimal implementation
+
+3. **Transformation Caching** 🔌 **Plugin**
+   - Cache transformed HTML at edge
+   - Invalidate on content changes
+   - **Example**: `@adobe/helix-edge-cache` plugin with HTML-aware caching
+
+### Example: Complete HTML Transformation Setup
+
+```javascript
+import { edge } from '@adobe/helix-deploy-plugin-edge';
+import htmlPlugin from '@adobe/helix-edge-html';
+import analyticsPlugin from '@adobe/helix-edge-analytics';
+import cspPlugin from '@adobe/helix-edge-csp';
+
+export const handler = edge
+  .with(htmlPlugin)
+  .with(analyticsPlugin, { trackingId: process.env.GA_ID })
+  .with(cspPlugin)
+  .wrap(async (request, context) => {
+    const response = await fetch(request, {
+      backend: 'origin'
+    });
+
+    // Check if HTML response
+    if (!context.html.isHtmlResponse(response)) {
+      return response;
+    }
+
+    // Apply custom transformations
+    return context.html.transform(response, (rewriter) => {
+      rewriter
+        .on('head', {
+          element(el) {
+            // Add custom meta tags
+            el.prepend(`<meta name="edge-processed" content="true">`, { html: true });
+          }
+        })
+        .on('img', {
+          element(el) {
+            // Lazy load images
+            if (!el.hasAttribute('loading')) {
+              el.setAttribute('loading', 'lazy');
+            }
+
+            // Rewrite CDN URLs
+            const src = el.getAttribute('src');
+            if (src && src.startsWith('/images/')) {
+              el.setAttribute('src', `https://cdn.example.com${src}`);
+            }
+          }
+        })
+        .on('a[href^="http://"]', {
+          element(el) {
+            // Upgrade insecure links
+            const href = el.getAttribute('href');
+            el.setAttribute('href', href.replace('http://', 'https://'));
+          }
+        })
+        .on('.personalized', {
+          element(el) {
+            // Personalization based on geo
+            const country = context.geo?.countryCode || 'US';
+            el.setInnerContent(`Content for ${country}`);
+          }
+        });
+    });
+  });
+```
+
+### Platform-Specific Optimizations
+
+**Cloudflare-Specific:**
+- Use native `HTMLRewriter` (Rust-based lol-html parser)
+- Leverage full CSS selector support
+- Minimal performance overhead
+
+**Fastly-Specific:**
+- Use JavaScript-based parser (htmlparser2 or custom)
+- Optimize selector matching (avoid complex selectors)
+- Consider simple regex-based transformations for basic cases
+
+**Graceful Degradation:**
+```javascript
+// Plugin automatically detects platform and uses optimal implementation
+export const handler = edge
+  .with(htmlPlugin, {
+    // Use simple transformations on Fastly for better performance
+    fastlyOptimizations: true,
+    // Use full-featured rewriter on Cloudflare
+    cloudflareNative: true
+  })
+  .wrap(async (request, context) => {
+    return context.html.transform(response, (rewriter) => {
+      // Transformations work on both platforms
+      rewriter.on('title', { /* ... */ });
+    });
+  });
+```
+
+---
+
 ## References
 
 ### Cloudflare Documentation
