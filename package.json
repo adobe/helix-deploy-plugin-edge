@@ -5,8 +5,8 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "test": "c8 mocha -i -g Integration",
-    "integration-ci": "c8 mocha -g Integration",
+    "test": "c8 --exclude 'test/fixtures/**' mocha -i -g Integration",
+    "integration-ci": "c8 --exclude 'test/fixtures/**' mocha -g Integration",
     "lint": "eslint .",
     "semantic-release": "semantic-release",
     "semantic-release-dry": "semantic-release --dry-run --branches $CI_BRANCH",
@@ -26,7 +26,10 @@
     "require": "test/setup-env.js",
     "recursive": "true",
     "reporter": "mocha-multi-reporters",
-    "reporter-options": "configFile=.mocha-multi.json"
+    "reporter-options": "configFile=.mocha-multi.json",
+    "exclude": [
+      "test/fixtures/**"
+    ]
   },
   "devDependencies": {
     "@adobe/eslint-config-helix": "3.0.14",
