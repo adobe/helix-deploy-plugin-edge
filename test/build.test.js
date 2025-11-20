@@ -163,7 +163,8 @@ describe('Edge Build Test', () => {
 
     await builder.run();
 
-    await assertZipEntries(path.resolve(testRoot, 'dist', 'default', 'decompress-test.zip'), [
+    // The zip is created in dist/{package-name}/ not dist/default/
+    await assertZipEntries(path.resolve(testRoot, 'dist', 'decompress-package', 'decompress-test.zip'), [
       'index.js',
       'package.json',
       'wrangler.toml',
