@@ -123,6 +123,7 @@ describe('Fastly Compute@Edge Integration Test', () => {
         '--compute-service-id', serviceID,
         '--compute-test-domain', 'possibly-working-sawfish',
         '--package.name', 'LoggingTest',
+        '--package.params', 'TEST=logging',
         '--update-package', 'true',
         '--fastly-gateway', 'deploy-test.anywhere.run',
         '--fastly-service-id', '4u8SAdblhzzbXntBYCjhcK',

@@ -112,6 +112,7 @@ describe('Cloudflare Integration Test', () => {
         '--cloudflare-account-id', 'b4adf6cfdac0918eb6aa5ad033da0747',
         '--cloudflare-test-domain', 'rockerduck',
         '--package.name', 'logging-test',
+        '--package.params', 'TEST=logging',
         '--update-package', 'true',
         '--test', '/?operation=debug&loggers=test-logger',
         '--directory', testRoot,
