@@ -84,7 +84,7 @@ export function main(req, context) {
       timestamp: new Date().toISOString(),
     };
 
-    return new Response(JSON.stringify(response, null, 2), {
+    return new Response(JSON.stringify(response), {
       headers: {
         'Content-Type': 'application/json',
       },
