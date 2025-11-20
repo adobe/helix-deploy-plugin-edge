@@ -33,6 +33,7 @@ jobs:
       - run: npm run integration-ci
         env:
           HLX_FASTLY_AUTH: ${{ secrets.HLX_FASTLY_AUTH }}
+          CLOUDFLARE_AUTH: ${{ secrets.CLOUDFLARE_AUTH }}
 
       - name: Semantic Release (Dry Run)
         run: npm run semantic-release-dry

@@ -35,7 +35,7 @@ describe('Cloudflare Integration Test', () => {
     await fse.remove(testRoot);
   });
 
-  it.skip('Deploy a pure action to Cloudflare', async () => {
+  it('Deploy a pure action to Cloudflare', async () => {
     await fse.copy(path.resolve(__rootdir, 'test', 'fixtures', 'edge-action'), testRoot);
     process.chdir(testRoot); // need to change .cwd() for yargs to pickup `wsk` in package.json
     const builder = await new CLI()
@@ -47,8 +47,9 @@ describe('Cloudflare Integration Test', () => {
         '--plugin', path.resolve(__rootdir, 'src', 'index.js'),
         '--arch', 'edge',
         '--cloudflare-email', 'lars@trieloff.net',
-        '--cloudflare-account-id', 'b4adf6cfdac0918eb6aa5ad033da0747',
-        '--cloudflare-test-domain', 'rockerduck',
+        '--cloudflare-account-id', '155ec15a52a18a14801e04b019da5e5a',
+        '--cloudflare-test-domain', 'minivelos',
+        '--cloudflare-auth', process.env.CLOUDFLARE_AUTH,
         '--package.params', 'HEY=ho',
         '--package.params', 'ZIP=zap',
         '--update-package', 'true',
