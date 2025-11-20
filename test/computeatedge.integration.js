@@ -73,7 +73,7 @@ describe('Fastly Compute@Edge Integration Test', () => {
     assert.ok(out.indexOf('dist/Test/fastly-bundle.tar.gz') > 0, out);
   }).timeout(10000000);
 
-  it.skip('Deploy decompress-test fixture to Compute@Edge', async () => {
+  it('Deploy decompress-test fixture to Compute@Edge', async () => {
     const serviceID = '1yv1Wl7NQCFmNBkW4L8htc';
 
     await fse.copy(path.resolve(__rootdir, 'test', 'fixtures', 'decompress-test'), testRoot);

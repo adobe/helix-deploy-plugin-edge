@@ -138,7 +138,7 @@ describe('Edge Build Test', () => {
   })
     .timeout(50000);
 
-  it.skip('generates the bundle for decompress-test fixture', async () => {
+  it('generates the bundle for decompress-test fixture', async () => {
     await fse.remove(testRoot);
     testRoot = await createTestRoot();
     await fse.copy(PROJECT_DECOMPRESS, testRoot);
