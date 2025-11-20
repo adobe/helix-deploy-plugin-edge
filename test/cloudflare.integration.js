@@ -65,6 +65,6 @@ describe('Cloudflare Integration Test', () => {
     const res = await builder.run();
     assert.ok(res);
     const out = builder.cfg._logger.output;
-    assert.ok(out.indexOf('https://simple-package--simple-project.rockerduck.workers.dev') > 0, out);
+    assert.ok(out.indexOf('https://simple-package--simple-project.minivelos.workers.dev') > 0, out);
   }).timeout(10000000);
 });
