@@ -126,6 +126,7 @@ describe('Fastly Compute@Edge Integration Test', () => {
         '--package.params', 'TEST=logging',
         '--update-package', 'true',
         '--fastly-gateway', 'deploy-test.anywhere.run',
+        '-p', 'FOO=bar',
         '--fastly-service-id', '4u8SAdblhzzbXntBYCjhcK',
         '--test', '/?operation=verbose',
         '--directory', testRoot,

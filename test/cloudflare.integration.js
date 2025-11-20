@@ -114,6 +114,7 @@ describe('Cloudflare Integration Test', () => {
         '--package.name', 'logging-test',
         '--package.params', 'TEST=logging',
         '--update-package', 'true',
+        '-p', 'FOO=bar',
         '--test', '/?operation=debug&loggers=test-logger',
         '--directory', testRoot,
         '--entryFile', 'index.js',
