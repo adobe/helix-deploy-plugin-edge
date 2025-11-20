@@ -76,7 +76,7 @@ describe('CacheOverride Demo Integration Test', () => {
     assert.ok(out.indexOf('/cache-demo/short') > 0, 'Should list short cache route');
   }).timeout(10000000);
 
-  it.skip('Deploy cache-demo to Cloudflare', async () => {
+  it('Deploy cache-demo to Cloudflare', async () => {
     await fse.copy(path.resolve(__rootdir, 'test', 'fixtures', 'cache-demo'), testRoot);
     process.chdir(testRoot);
 
