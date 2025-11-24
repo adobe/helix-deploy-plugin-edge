@@ -278,42 +278,11 @@ service_id = ""
         .map(([key, value]) => this.putSecret(actionStoreId, key, value));
       await Promise.all(actionSecretPromises);
 
-      // Populate package secret store with package params and special params
+      // Populate package secret store with package params
       this.log.debug('--: populating package secret store with package params');
       const packageSecretPromises = Object.entries(this.cfg.packageParams)
         .map(([key, value]) => this.putSecret(packageStoreId, key, value));
-
-      // Add special params for gateway fallback to package store
-      if (this.cfg.packageToken) {
-        packageSecretPromises.push(this.putSecret(packageStoreId, '_token', this.cfg.packageToken));
-      }
-      if (this._cfg.fastlyGateway) {
-        packageSecretPromises.push(this.putSecret(packageStoreId, '_package', `https://${this._cfg.fastlyGateway}/${this.cfg.packageName}/`));
-      }
       await Promise.all(packageSecretPromises);
-
-      const host = this._cfg.fastlyGateway;
-      const backend = {
-        hostname: host,
-        ssl_cert_hostname: host,
-        ssl_sni_hostname: host,
-        address: host,
-        override_host: host,
-        name: 'gateway',
-        error_threshold: 0,
-        first_byte_timeout: 60000,
-        weight: 100,
-        connect_timeout: 5000,
-        port: 443,
-        between_bytes_timeout: 10000,
-        shield: '', // 'bwi-va-us',
-        max_conn: 200,
-        use_ssl: true,
-      };
-      if (host) {
-        this.log.debug(`--: updating gateway backend: ${host}`);
-        await this._fastly.writeBackend(version, 'gateway', backend);
-      }
     }, true);
 
     this.log.debug('--: waiting for 90 seconds for Fastly to process the deployment...');
@@ -326,7 +295,7 @@ service_id = ""
   }
 
   async updatePackage() {
-    this.log.info(`--: updating app (gateway) config for https://${this._cfg.fastlyGateway}/${this.cfg.packageName}/...`);
+    this.log.info(`--: updating package parameters for ${this.cfg.packageName}...`);
 
     this.init();
 
@@ -343,18 +312,10 @@ service_id = ""
       .map(([key, value]) => this.putSecret(actionStoreId, key, value));
     await Promise.all(actionSecretPromises);
 
-    // Update package secret store with package params and special params
+    // Update package secret store with package params
     this.log.debug('--: updating package secret store with package params');
     const packageSecretPromises = Object.entries(this.cfg.packageParams)
       .map(([key, value]) => this.putSecret(packageStoreId, key, value));
-
-    // Update special params for gateway fallback in package store
-    if (this.cfg.packageToken) {
-      packageSecretPromises.push(this.putSecret(packageStoreId, '_token', this.cfg.packageToken));
-    }
-    if (this._cfg.fastlyGateway) {
-      packageSecretPromises.push(this.putSecret(packageStoreId, '_package', `https://${this._cfg.fastlyGateway}/${this.cfg.packageName}/`));
-    }
     await Promise.all(packageSecretPromises);
 
     await this._fastly.discard();

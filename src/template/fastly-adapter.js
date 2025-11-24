@@ -46,7 +46,6 @@ export async function handleRequest(event) {
     const env = await getEnvironmentInfo(request);
 
     console.log('Fastly Adapter is here');
-    let packageParams;
     // eslint-disable-next-line import/no-unresolved,global-require
     const { main } = require('./main.js');
     const context = {
@@ -80,70 +79,17 @@ export async function handleRequest(event) {
               if (secret) {
                 return secret.plaintext();
               }
-              throw new Error('Secret not found in action store');
-            }).catch(() => {
               // Try package_secrets next (package-wide params)
-              try {
-                const packageSecrets = new SecretStore('package_secrets');
-                return packageSecrets.get(prop).then((secret) => {
-                  if (secret) {
-                    return secret.plaintext();
-                  }
-                  throw new Error('Secret not found in package store');
-                }).catch(() => {
-                  // Fall back to cached package params
-                  if (packageParams) {
-                    console.log('Using cached params');
-                    return packageParams[prop];
-                  }
-
-                  // Fall back to gateway fetch for dynamic params
-                  const packageStore = new SecretStore('package_secrets');
-                  return packageStore.get('_package').then((pkgSecret) => {
-                    if (!pkgSecret) {
-                      return undefined;
-                    }
-                    const url = pkgSecret.plaintext();
-                    return packageStore.get('_token').then((tokenSecret) => {
-                      if (!tokenSecret) {
-                        return undefined;
-                      }
-                      const token = tokenSecret.plaintext();
-                      // console.log(`Getting secrets from ${url} with ${token}`);
-                      return fetch(url, {
-                        backend: 'gateway',
-                        headers: {
-                          authorization: `Bearer ${token}`,
-                        },
-                      }).then((response) => {
-                        if (response.ok) {
-                          // console.log('response is ok...');
-                          return response.text().then((json) => {
-                            // console.log('json received: ' + json);
-                            packageParams = JSON.parse(json);
-                            return packageParams[prop];
-                          }).catch((error) => {
-                            console.error(`Unable to parse JSON: ${error.message}`);
-                          });
-                        }
-                        console.error(`HTTP status is not ok: ${response.status}`);
-                        return undefined;
-                      }).catch((err) => {
-                        console.error(`Unable to fetch params: ${err.message}`);
-                      });
-                    });
-                  }).catch((err) => {
-                    console.error(`Unable to get gateway info: ${err.message}`);
-                    return undefined;
-                  });
-                });
-              } catch (err) {
-                console.error(`Error accessing package secrets: ${err.message}`);
+              const packageSecrets = new SecretStore('package_secrets');
+              return packageSecrets.get(prop).then((pkgSecret) => {
+                if (pkgSecret) {
+                  return pkgSecret.plaintext();
+                }
                 return undefined;
-              }
+              });
             });
           } catch (err) {
-            console.error(`Error accessing action secrets: ${err.message}`);
+            console.error(`Error accessing secrets: ${err.message}`);
             return undefined;
           }
         },
