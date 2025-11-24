@@ -177,7 +177,7 @@ export default class CloudflareDeployer extends BaseDeployer {
         },
       });
       const { result: results } = await listres.json();
-      result = results.find((r) => r.title === name);
+      result = results?.find((r) => r.title === name);
     }
     return result;
   }
