@@ -168,8 +168,11 @@ export default class CloudflareDeployer extends BaseDeployer {
         title: name,
       },
     });
-    let { result } = await postres.json();
+    let { result, errors } = await postres.json();
     if (!result) {
+      if (errors) {
+        this.log.debug(`KV namespace creation returned errors: ${JSON.stringify(errors)}`);
+      }
       const listres = await this.fetch(`https://api.cloudflare.com/client/v4/accounts/${this._cfg.accountID}/storage/kv/namespaces`, {
         method: 'GET',
         headers: {
@@ -178,6 +181,9 @@ export default class CloudflareDeployer extends BaseDeployer {
       });
       const { result: results } = await listres.json();
       result = results?.find((r) => r.title === name);
+    }
+    if (!result) {
+      throw new Error(`Failed to create or find KV namespace: ${name}`);
     }
     return result;
   }
