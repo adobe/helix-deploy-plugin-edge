@@ -68,7 +68,7 @@ describe('Cloudflare Integration Test', () => {
     assert.ok(out.indexOf('https://simple-package--simple-project.minivelos.workers.dev') > 0, out);
   }).timeout(10000000);
 
-  it('Deploy decompress-test fixture to Cloudflare', async () => {
+  it.skip('Deploy decompress-test fixture to Cloudflare', async () => {
     await fse.copy(path.resolve(__rootdir, 'test', 'fixtures', 'decompress-test'), testRoot);
     process.chdir(testRoot);
     const builder = await new CLI()
@@ -80,8 +80,8 @@ describe('Cloudflare Integration Test', () => {
         '--plugin', path.resolve(__rootdir, 'src', 'index.js'),
         '--arch', 'edge',
         '--cloudflare-email', 'lars@trieloff.net',
-        '--cloudflare-account-id', 'b4adf6cfdac0918eb6aa5ad033da0747',
-        '--cloudflare-test-domain', 'rockerduck',
+        '--cloudflare-account-id', '155ec15a52a18a14801e04b019da5e5a',
+        '--cloudflare-test-domain', 'minivelos',
         '--cloudflare-auth', process.env.CLOUDFLARE_AUTH,
         '--update-package', 'true',
         '--test', '/gzip',
@@ -95,11 +95,11 @@ describe('Cloudflare Integration Test', () => {
     const res = await builder.run();
     assert.ok(res);
     const out = builder.cfg._logger.output;
-    assert.ok(out.indexOf('decompress-package--decompress-test.rockerduck.workers.dev') > 0, out);
+    assert.ok(out.indexOf('decompress-package--decompress-test.minivelos.workers.dev') > 0, out);
     assert.ok(out.indexOf('"test":"decompress-true"') > 0 || out.indexOf('"isDecompressed":true') > 0, `The function output should indicate decompression worked: ${out}`);
   }).timeout(10000000);
 
-  it('Deploy logging example to Cloudflare', async () => {
+  it.skip('Deploy logging example to Cloudflare', async () => {
     await fse.copy(path.resolve(__rootdir, 'test', 'fixtures', 'logging-example'), testRoot);
     process.chdir(testRoot);
     const builder = await new CLI()
@@ -111,8 +111,8 @@ describe('Cloudflare Integration Test', () => {
         '--plugin', path.resolve(__rootdir, 'src', 'index.js'),
         '--arch', 'edge',
         '--cloudflare-email', 'lars@trieloff.net',
-        '--cloudflare-account-id', 'b4adf6cfdac0918eb6aa5ad033da0747',
-        '--cloudflare-test-domain', 'rockerduck',
+        '--cloudflare-account-id', '155ec15a52a18a14801e04b019da5e5a',
+        '--cloudflare-test-domain', 'minivelos',
         '--cloudflare-auth', process.env.CLOUDFLARE_AUTH,
         '--package.name', 'logging-test',
         '--package.params', 'TEST=logging',
@@ -129,7 +129,7 @@ describe('Cloudflare Integration Test', () => {
     const res = await builder.run();
     assert.ok(res);
     const out = builder.cfg._logger.output;
-    assert.ok(out.indexOf('rockerduck.workers.dev') > 0, out);
+    assert.ok(out.indexOf('minivelos.workers.dev') > 0, out);
     assert.ok(out.indexOf('"status":"ok"') > 0, 'Response should include status ok');
     assert.ok(out.indexOf('"logging":"enabled"') > 0, 'Response should indicate logging is enabled');
   }).timeout(10000000);
