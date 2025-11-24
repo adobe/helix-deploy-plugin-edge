@@ -141,8 +141,14 @@ export default class ComputeAtEdgeDeployer extends BaseDeployer {
    * @returns {Promise<void>}
    */
   async linkResource(version, resourceId, name) {
-    await this._fastly.request(`/service/${this._cfg.service}/version/${version}/resource`, {
+    const url = `https://api.fastly.com/service/${this._cfg.service}/version/${version}/resource`;
+    await this.fetch(url, {
       method: 'POST',
+      headers: {
+        'Fastly-Key': this._cfg.auth,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
       body: JSON.stringify({
         name,
         resource_id: resourceId,
