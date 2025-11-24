@@ -68,7 +68,7 @@ describe('Cloudflare Integration Test', () => {
     assert.ok(out.indexOf('https://simple-package--simple-project.minivelos.workers.dev') > 0, out);
   }).timeout(10000000);
 
-  it.skip('Deploy decompress-test fixture to Cloudflare', async () => {
+  it('Deploy decompress-test fixture to Cloudflare', async () => {
     await fse.copy(path.resolve(__rootdir, 'test', 'fixtures', 'decompress-test'), testRoot);
     process.chdir(testRoot);
     const builder = await new CLI()
@@ -99,7 +99,7 @@ describe('Cloudflare Integration Test', () => {
     assert.ok(out.indexOf('"test":"decompress-true"') > 0 || out.indexOf('"isDecompressed":true') > 0, `The function output should indicate decompression worked: ${out}`);
   }).timeout(10000000);
 
-  it.skip('Deploy logging example to Cloudflare', async () => {
+  it('Deploy logging example to Cloudflare', async () => {
     await fse.copy(path.resolve(__rootdir, 'test', 'fixtures', 'logging-example'), testRoot);
     process.chdir(testRoot);
     const builder = await new CLI()
