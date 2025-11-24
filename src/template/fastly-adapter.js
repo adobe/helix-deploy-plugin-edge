@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 /* eslint-env serviceworker */
-/* global CacheOverride, SecretStore, ConfigStore */
+/* global CacheOverride, SecretStore */
 import { extractPathFromURL } from './adapter-utils.js';
 
 export function getEnvInfo(req, env) {
@@ -73,74 +73,77 @@ export async function handleRequest(event) {
       },
       env: new Proxy({}, {
         get: (target, prop) => {
-          // Try SecretStore first (for action params and special params)
+          // Try action_secrets first (action-specific params - highest priority)
           try {
-            const secrets = new SecretStore('secrets');
-            return secrets.get(prop).then((secret) => {
+            const actionSecrets = new SecretStore('action_secrets');
+            return actionSecrets.get(prop).then((secret) => {
               if (secret) {
                 return secret.plaintext();
               }
-              throw new Error('Secret not found');
+              throw new Error('Secret not found in action store');
             }).catch(() => {
-              // Try ConfigStore next (for package params)
+              // Try package_secrets next (package-wide params)
               try {
-                const config = new ConfigStore('config');
-                const value = config.get(prop);
-                if (value) {
-                  return value;
-                }
-              } catch {
-                // ConfigStore lookup failed
-              }
-
-              // Fall back to cached package params
-              if (packageParams) {
-                console.log('Using cached params');
-                return packageParams[prop];
-              }
-
-              // Fall back to gateway fetch
-              const secretsStore = new SecretStore('secrets');
-              return secretsStore.get('_package').then((pkgSecret) => {
-                if (!pkgSecret) {
-                  return undefined;
-                }
-                const url = pkgSecret.plaintext();
-                return secretsStore.get('_token').then((tokenSecret) => {
-                  if (!tokenSecret) {
-                    return undefined;
+                const packageSecrets = new SecretStore('package_secrets');
+                return packageSecrets.get(prop).then((secret) => {
+                  if (secret) {
+                    return secret.plaintext();
                   }
-                  const token = tokenSecret.plaintext();
-                  // console.log(`Getting secrets from ${url} with ${token}`);
-                  return fetch(url, {
-                    backend: 'gateway',
-                    headers: {
-                      authorization: `Bearer ${token}`,
-                    },
-                  }).then((response) => {
-                    if (response.ok) {
-                      // console.log('response is ok...');
-                      return response.text().then((json) => {
-                        // console.log('json received: ' + json);
-                        packageParams = JSON.parse(json);
-                        return packageParams[prop];
-                      }).catch((error) => {
-                        console.error(`Unable to parse JSON: ${error.message}`);
-                      });
+                  throw new Error('Secret not found in package store');
+                }).catch(() => {
+                  // Fall back to cached package params
+                  if (packageParams) {
+                    console.log('Using cached params');
+                    return packageParams[prop];
+                  }
+
+                  // Fall back to gateway fetch for dynamic params
+                  const packageStore = new SecretStore('package_secrets');
+                  return packageStore.get('_package').then((pkgSecret) => {
+                    if (!pkgSecret) {
+                      return undefined;
                     }
-                    console.error(`HTTP status is not ok: ${response.status}`);
-                    return undefined;
+                    const url = pkgSecret.plaintext();
+                    return packageStore.get('_token').then((tokenSecret) => {
+                      if (!tokenSecret) {
+                        return undefined;
+                      }
+                      const token = tokenSecret.plaintext();
+                      // console.log(`Getting secrets from ${url} with ${token}`);
+                      return fetch(url, {
+                        backend: 'gateway',
+                        headers: {
+                          authorization: `Bearer ${token}`,
+                        },
+                      }).then((response) => {
+                        if (response.ok) {
+                          // console.log('response is ok...');
+                          return response.text().then((json) => {
+                            // console.log('json received: ' + json);
+                            packageParams = JSON.parse(json);
+                            return packageParams[prop];
+                          }).catch((error) => {
+                            console.error(`Unable to parse JSON: ${error.message}`);
+                          });
+                        }
+                        console.error(`HTTP status is not ok: ${response.status}`);
+                        return undefined;
+                      }).catch((err) => {
+                        console.error(`Unable to fetch params: ${err.message}`);
+                      });
+                    });
                   }).catch((err) => {
-                    console.error(`Unable to fetch params: ${err.message}`);
+                    console.error(`Unable to get gateway info: ${err.message}`);
+                    return undefined;
                   });
                 });
-              }).catch((err) => {
-                console.error(`Unable to get gateway info: ${err.message}`);
+              } catch (err) {
+                console.error(`Error accessing package secrets: ${err.message}`);
                 return undefined;
-              });
+              }
             });
           } catch (err) {
-            console.error(`Error accessing secrets: ${err.message}`);
+            console.error(`Error accessing action secrets: ${err.message}`);
             return undefined;
           }
         },
