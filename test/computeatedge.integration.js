@@ -143,5 +143,5 @@ describe('Fastly Compute@Edge Integration Test', () => {
     assert.ok(out.indexOf('"status":"ok"') > 0, 'Response should include status ok');
     assert.ok(out.indexOf('"logging":"enabled"') > 0, 'Response should indicate logging is enabled');
     assert.ok(out.indexOf('dist/LoggingTest/fastly-bundle.tar.gz') > 0, out);
-  }).timeout(10000000)
+  }).timeout(10000000);
 });

@@ -130,5 +130,5 @@ describe('Cloudflare Integration Test', () => {
     assert.ok(out.indexOf('rockerduck.workers.dev') > 0, out);
     assert.ok(out.indexOf('"status":"ok"') > 0, 'Response should include status ok');
     assert.ok(out.indexOf('"logging":"enabled"') > 0, 'Response should indicate logging is enabled');
-  }).timeout(10000000)
+  }).timeout(10000000);
 });
