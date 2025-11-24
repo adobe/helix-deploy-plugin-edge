@@ -56,7 +56,9 @@ describe('Deploy Test', () => {
       })
       .reply(200, JSON.stringify({ result: { id: 'test-namespace' } }))
       .put('/client/v4/accounts/123/workers/scripts/default--test-worker')
-      .reply(200);
+      .reply(200)
+      .post('/client/v4/accounts/123/workers/scripts/default--test-worker/subdomain')
+      .reply(200, JSON.stringify({ result: { enabled: true, previews_enabled: true } }));
 
     process.chdir(testRoot); // need to change .cwd() for yargs to pickup `wsk` in package.json
     const builder = await new CLI()
@@ -120,7 +122,9 @@ describe('Deploy Test', () => {
         bodies.settings = b;
         return true;
       })
-      .reply(200);
+      .reply(200)
+      .post('/client/v4/accounts/123/workers/scripts/default--test-worker/subdomain')
+      .reply(200, JSON.stringify({ result: { enabled: true, previews_enabled: true } }));
 
     process.chdir(testRoot); // need to change .cwd() for yargs to pickup `wsk` in package.json
     const builder = await new CLI()
