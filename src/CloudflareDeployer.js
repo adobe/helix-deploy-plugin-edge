@@ -89,6 +89,8 @@ export default class CloudflareDeployer extends BaseDeployer {
     await this.updatePackageParams(id, this.cfg.packageParams);
 
     await this.restoreSettings(settings);
+
+    await this.enableSubdomain();
   }
 
   async getSettings() {
@@ -117,6 +119,22 @@ export default class CloudflareDeployer extends BaseDeployer {
       },
       body: JSON.stringify(existing),
     });
+    return res.ok;
+  }
+
+  async enableSubdomain() {
+    const res = await this.fetch(`https://api.cloudflare.com/client/v4/accounts/${this._cfg.accountID}/workers/scripts/${this.fullFunctionName}/subdomain`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this._cfg.auth}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ enabled: true }),
+    });
+    if (!res.ok) {
+      const { errors } = await res.json();
+      this.log.warn(`Unable to enable workers.dev subdomain: ${errors[0]?.message || 'unknown error'}`);
+    }
     return res.ok;
   }
 
@@ -169,7 +187,7 @@ export default class CloudflareDeployer extends BaseDeployer {
       ? this.testRequest({
         url: `https://${this.fullFunctionName}.${this._cfg.testDomain}.workers.dev`,
         idHeader: 'CF-RAY',
-        retry404: 0,
+        retry404: 5,
       })
       : undefined;
   }
