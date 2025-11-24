@@ -58,6 +58,137 @@ export default class ComputeAtEdgeDeployer extends BaseDeployer {
   }
 
   /**
+   * Get or create a secret store via Fastly API
+   * @param {string} name - Name of the secret store
+   * @returns {Promise<string>} - Store ID
+   */
+  async getOrCreateSecretStore(name) {
+    // Try to list stores and find by name
+    try {
+      const listRes = await this.fetch(`https://api.fastly.com/resources/stores/secret`, {
+        method: 'GET',
+        headers: {
+          'Fastly-Key': this._cfg.auth,
+          Accept: 'application/json',
+        },
+      });
+      const stores = await listRes.json();
+      const existing = stores.data?.find((s) => s.name === name);
+      if (existing) {
+        return existing.id;
+      }
+    } catch (err) {
+      this.log.debug(`Could not list secret stores: ${err.message}`);
+    }
+
+    // Create new store
+    const res = await this.fetch(`https://api.fastly.com/resources/stores/secret`, {
+      method: 'POST',
+      headers: {
+        'Fastly-Key': this._cfg.auth,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ name }),
+    });
+    const data = await res.json();
+    return data.id || data.store_id;
+  }
+
+  /**
+   * Get or create a config store via Fastly API
+   * @param {string} name - Name of the config store
+   * @returns {Promise<string>} - Store ID
+   */
+  async getOrCreateConfigStore(name) {
+    // Try to list stores and find by name
+    try {
+      const listRes = await this.fetch(`https://api.fastly.com/resources/stores/config`, {
+        method: 'GET',
+        headers: {
+          'Fastly-Key': this._cfg.auth,
+          Accept: 'application/json',
+        },
+      });
+      const stores = await listRes.json();
+      const existing = stores.data?.find((s) => s.name === name);
+      if (existing) {
+        return existing.id;
+      }
+    } catch (err) {
+      this.log.debug(`Could not list config stores: ${err.message}`);
+    }
+
+    // Create new store
+    const res = await this.fetch(`https://api.fastly.com/resources/stores/config`, {
+      method: 'POST',
+      headers: {
+        'Fastly-Key': this._cfg.auth,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ name }),
+    });
+    const data = await res.json();
+    return data.id || data.store_id;
+  }
+
+  /**
+   * Link a resource (secret/config store) to a service version
+   * @param {string} version - Service version
+   * @param {string} resourceId - Resource store ID
+   * @param {string} name - Name to use in the service
+   * @returns {Promise<void>}
+   */
+  async linkResource(version, resourceId, name) {
+    await this._fastly.request(`/service/${this._cfg.service}/version/${version}/resource`, {
+      method: 'POST',
+      body: JSON.stringify({
+        name,
+        resource_id: resourceId,
+      }),
+    });
+  }
+
+  /**
+   * Add or update a secret in a secret store
+   * @param {string} storeId - Secret store ID
+   * @param {string} name - Secret name
+   * @param {string} value - Secret value
+   * @returns {Promise<void>}
+   */
+  async putSecret(storeId, name, value) {
+    await this.fetch(`https://api.fastly.com/resources/stores/secret/${storeId}/secrets`, {
+      method: 'PUT',
+      headers: {
+        'Fastly-Key': this._cfg.auth,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ name, secret: value }),
+    });
+  }
+
+  /**
+   * Add or update an item in a config store
+   * @param {string} storeId - Config store ID
+   * @param {string} key - Item key
+   * @param {string} value - Item value
+   * @returns {Promise<void>}
+   */
+  async putConfigItem(storeId, key, value) {
+    await this.fetch(`https://api.fastly.com/resources/stores/config/${storeId}/item/${encodeURIComponent(key)}`, {
+      method: 'PUT',
+      headers: {
+        'Fastly-Key': this._cfg.auth,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ item_key: key, item_value: value }),
+    });
+  }
+
+  /**
    *
    * @returns
    */
@@ -123,11 +254,37 @@ service_id = ""
       this.log.debug('--: uploading package to fastly, service version', version);
       await this._fastly.writePackage(version, buf);
 
-      this.log.debug('--: creating secrets dictionary');
-      await this._fastly.writeDictionary(version, 'secrets', {
-        name: 'secrets',
-        write_only: 'true',
-      });
+      // Get or create secret store for action params and special params
+      const secretStoreName = `${this.cfg.packageName}--secrets`;
+      this.log.debug(`--: getting or creating secret store: ${secretStoreName}`);
+      const secretStoreId = await this.getOrCreateSecretStore(secretStoreName);
+      await this.linkResource(version, secretStoreId, 'secrets');
+
+      // Get or create config store for package params
+      const configStoreName = `${this.cfg.packageName}--config`;
+      this.log.debug(`--: getting or creating config store: ${configStoreName}`);
+      const configStoreId = await this.getOrCreateConfigStore(configStoreName);
+      await this.linkResource(version, configStoreId, 'config');
+
+      // Populate secret store with action params
+      this.log.debug('--: populating secret store with action params');
+      for (const [key, value] of Object.entries(this.cfg.params)) {
+        await this.putSecret(secretStoreId, key, value);
+      }
+
+      // Populate secret store with special params for gateway fallback
+      if (this.cfg.packageToken) {
+        await this.putSecret(secretStoreId, '_token', this.cfg.packageToken);
+      }
+      if (this._cfg.fastlyGateway) {
+        await this.putSecret(secretStoreId, '_package', `https://${this._cfg.fastlyGateway}/${this.cfg.packageName}/`);
+      }
+
+      // Populate config store with package params
+      this.log.debug('--: populating config store with package params');
+      for (const [key, value] of Object.entries(this.cfg.packageParams)) {
+        await this.putConfigItem(configStoreId, key, value);
+      }
 
       const host = this._cfg.fastlyGateway;
       const backend = {
@@ -167,17 +324,32 @@ service_id = ""
 
     this.init();
 
-    const functionparams = Object
-      .entries(this.cfg.params)
-      .map(([key, value]) => ({
-        item_key: key,
-        item_value: value,
-        op: 'update',
-      }));
+    // Get store IDs - stores should already exist from deployment
+    const secretStoreName = `${this.cfg.packageName}--secrets`;
+    const configStoreName = `${this.cfg.packageName}--config`;
+    this.log.debug(`--: looking up store IDs for ${secretStoreName} and ${configStoreName}`);
+    const secretStoreId = await this.getOrCreateSecretStore(secretStoreName);
+    const configStoreId = await this.getOrCreateConfigStore(configStoreName);
 
-    await this._fastly.bulkUpdateDictItems(undefined, 'secrets', ...functionparams);
-    await this._fastly.updateDictItem(undefined, 'secrets', '_token', this.cfg.packageToken);
-    await this._fastly.updateDictItem(undefined, 'secrets', '_package', `https://${this._cfg.fastlyGateway}/${this.cfg.packageName}/`);
+    // Update secret store with action params
+    this.log.debug('--: updating secret store with action params');
+    for (const [key, value] of Object.entries(this.cfg.params)) {
+      await this.putSecret(secretStoreId, key, value);
+    }
+
+    // Update special params for gateway fallback
+    if (this.cfg.packageToken) {
+      await this.putSecret(secretStoreId, '_token', this.cfg.packageToken);
+    }
+    if (this._cfg.fastlyGateway) {
+      await this.putSecret(secretStoreId, '_package', `https://${this._cfg.fastlyGateway}/${this.cfg.packageName}/`);
+    }
+
+    // Update config store with package params
+    this.log.debug('--: updating config store with package params');
+    for (const [key, value] of Object.entries(this.cfg.packageParams)) {
+      await this.putConfigItem(configStoreId, key, value);
+    }
 
     await this._fastly.discard();
   }

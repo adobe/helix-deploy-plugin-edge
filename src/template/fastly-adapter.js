@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 /* eslint-env serviceworker */
-/* global Dictionary, CacheOverride */
+/* global CacheOverride, SecretStore, ConfigStore */
 import { extractPathFromURL } from './adapter-utils.js';
 
 export function getEnvInfo(req, env) {
@@ -71,39 +71,77 @@ export async function handleRequest(event) {
         transactionId: env.txId,
         requestId: env.requestId,
       },
-      env: new Proxy(new Dictionary('secrets'), {
+      env: new Proxy({}, {
         get: (target, prop) => {
+          // Try SecretStore first (for action params and special params)
           try {
-            return target.get(prop);
-          } catch {
-            if (packageParams) {
-              console.log('Using cached params');
-              return packageParams[prop];
-            }
-            const url = target.get('_package');
-            const token = target.get('_token');
-            // console.log(`Getting secrets from ${url} with ${token}`);
-            return fetch(url, {
-              backend: 'gateway',
-              headers: {
-                authorization: `Bearer ${token}`,
-              },
-            }).then((response) => {
-              if (response.ok) {
-                // console.log('response is ok...');
-                return response.text().then((json) => {
-                  // console.log('json received: ' + json);
-                  packageParams = JSON.parse(json);
-                  return packageParams[prop];
-                }).catch((error) => {
-                  console.error(`Unable to parse JSON: ${error.message}`);
-                });
+            const secrets = new SecretStore('secrets');
+            return secrets.get(prop).then((secret) => {
+              if (secret) {
+                return secret.plaintext();
               }
-              console.error(`HTTP status is not ok: ${response.status}`);
-              return undefined;
-            }).catch((err) => {
-              console.error(`Unable to fetch parames: ${err.message}`);
+              throw new Error('Secret not found');
+            }).catch(() => {
+              // Try ConfigStore next (for package params)
+              try {
+                const config = new ConfigStore('config');
+                const value = config.get(prop);
+                if (value) {
+                  return value;
+                }
+              } catch {
+                // ConfigStore lookup failed
+              }
+
+              // Fall back to cached package params
+              if (packageParams) {
+                console.log('Using cached params');
+                return packageParams[prop];
+              }
+
+              // Fall back to gateway fetch
+              const secretsStore = new SecretStore('secrets');
+              return secretsStore.get('_package').then((pkgSecret) => {
+                if (!pkgSecret) {
+                  return undefined;
+                }
+                const url = pkgSecret.plaintext();
+                return secretsStore.get('_token').then((tokenSecret) => {
+                  if (!tokenSecret) {
+                    return undefined;
+                  }
+                  const token = tokenSecret.plaintext();
+                  // console.log(`Getting secrets from ${url} with ${token}`);
+                  return fetch(url, {
+                    backend: 'gateway',
+                    headers: {
+                      authorization: `Bearer ${token}`,
+                    },
+                  }).then((response) => {
+                    if (response.ok) {
+                      // console.log('response is ok...');
+                      return response.text().then((json) => {
+                        // console.log('json received: ' + json);
+                        packageParams = JSON.parse(json);
+                        return packageParams[prop];
+                      }).catch((error) => {
+                        console.error(`Unable to parse JSON: ${error.message}`);
+                      });
+                    }
+                    console.error(`HTTP status is not ok: ${response.status}`);
+                    return undefined;
+                  }).catch((err) => {
+                    console.error(`Unable to fetch params: ${err.message}`);
+                  });
+                });
+              }).catch((err) => {
+                console.error(`Unable to get gateway info: ${err.message}`);
+                return undefined;
+              });
             });
+          } catch (err) {
+            console.error(`Error accessing secrets: ${err.message}`);
+            return undefined;
           }
         },
       }),

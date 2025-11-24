@@ -15,6 +15,42 @@
 import assert from 'assert';
 import adapter, { getEnvInfo, handleRequest } from '../src/template/fastly-adapter.js';
 
+// Mock SecretStore and ConfigStore
+class MockSecretStore {
+  constructor(name) {
+    this.name = name;
+    this.data = {};
+  }
+
+  async get(key) {
+    if (this.data[key]) {
+      return {
+        plaintext: () => this.data[key],
+      };
+    }
+    return null;
+  }
+
+  set(key, value) {
+    this.data[key] = value;
+  }
+}
+
+class MockConfigStore {
+  constructor(name) {
+    this.name = name;
+    this.data = {};
+  }
+
+  get(key) {
+    return this.data[key] || null;
+  }
+
+  set(key, value) {
+    this.data[key] = value;
+  }
+}
+
 describe('Fastly Adapter Test', () => {
   it('Captures the environment', () => {
     const headers = new Map();
@@ -55,9 +91,13 @@ describe('Fastly Adapter Test', () => {
   it('returns the request handler in a fastly environment', () => {
     try {
       global.CacheOverride = true;
+      global.SecretStore = MockSecretStore;
+      global.ConfigStore = MockConfigStore;
       assert.strictEqual(adapter(), handleRequest);
     } finally {
       delete global.CacheOverride;
+      delete global.SecretStore;
+      delete global.ConfigStore;
     }
   });
 
