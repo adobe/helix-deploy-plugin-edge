@@ -11,6 +11,7 @@
  */
 
 /* eslint-env mocha */
+/* eslint-disable max-classes-per-file */
 
 import assert from 'assert';
 import adapter, { getEnvInfo, handleRequest } from '../src/template/fastly-adapter.js';

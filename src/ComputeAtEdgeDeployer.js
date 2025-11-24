@@ -65,7 +65,7 @@ export default class ComputeAtEdgeDeployer extends BaseDeployer {
   async getOrCreateSecretStore(name) {
     // Try to list stores and find by name
     try {
-      const listRes = await this.fetch(`https://api.fastly.com/resources/stores/secret`, {
+      const listRes = await this.fetch('https://api.fastly.com/resources/stores/secret', {
         method: 'GET',
         headers: {
           'Fastly-Key': this._cfg.auth,
@@ -82,7 +82,7 @@ export default class ComputeAtEdgeDeployer extends BaseDeployer {
     }
 
     // Create new store
-    const res = await this.fetch(`https://api.fastly.com/resources/stores/secret`, {
+    const res = await this.fetch('https://api.fastly.com/resources/stores/secret', {
       method: 'POST',
       headers: {
         'Fastly-Key': this._cfg.auth,
@@ -103,7 +103,7 @@ export default class ComputeAtEdgeDeployer extends BaseDeployer {
   async getOrCreateConfigStore(name) {
     // Try to list stores and find by name
     try {
-      const listRes = await this.fetch(`https://api.fastly.com/resources/stores/config`, {
+      const listRes = await this.fetch('https://api.fastly.com/resources/stores/config', {
         method: 'GET',
         headers: {
           'Fastly-Key': this._cfg.auth,
@@ -120,7 +120,7 @@ export default class ComputeAtEdgeDeployer extends BaseDeployer {
     }
 
     // Create new store
-    const res = await this.fetch(`https://api.fastly.com/resources/stores/config`, {
+    const res = await this.fetch('https://api.fastly.com/resources/stores/config', {
       method: 'POST',
       headers: {
         'Fastly-Key': this._cfg.auth,
@@ -268,23 +268,23 @@ service_id = ""
 
       // Populate secret store with action params
       this.log.debug('--: populating secret store with action params');
-      for (const [key, value] of Object.entries(this.cfg.params)) {
-        await this.putSecret(secretStoreId, key, value);
-      }
+      const secretPromises = Object.entries(this.cfg.params)
+        .map(([key, value]) => this.putSecret(secretStoreId, key, value));
 
       // Populate secret store with special params for gateway fallback
       if (this.cfg.packageToken) {
-        await this.putSecret(secretStoreId, '_token', this.cfg.packageToken);
+        secretPromises.push(this.putSecret(secretStoreId, '_token', this.cfg.packageToken));
       }
       if (this._cfg.fastlyGateway) {
-        await this.putSecret(secretStoreId, '_package', `https://${this._cfg.fastlyGateway}/${this.cfg.packageName}/`);
+        secretPromises.push(this.putSecret(secretStoreId, '_package', `https://${this._cfg.fastlyGateway}/${this.cfg.packageName}/`));
       }
+      await Promise.all(secretPromises);
 
       // Populate config store with package params
       this.log.debug('--: populating config store with package params');
-      for (const [key, value] of Object.entries(this.cfg.packageParams)) {
-        await this.putConfigItem(configStoreId, key, value);
-      }
+      const configPromises = Object.entries(this.cfg.packageParams)
+        .map(([key, value]) => this.putConfigItem(configStoreId, key, value));
+      await Promise.all(configPromises);
 
       const host = this._cfg.fastlyGateway;
       const backend = {
@@ -333,23 +333,23 @@ service_id = ""
 
     // Update secret store with action params
     this.log.debug('--: updating secret store with action params');
-    for (const [key, value] of Object.entries(this.cfg.params)) {
-      await this.putSecret(secretStoreId, key, value);
-    }
+    const secretPromises = Object.entries(this.cfg.params)
+      .map(([key, value]) => this.putSecret(secretStoreId, key, value));
 
     // Update special params for gateway fallback
     if (this.cfg.packageToken) {
-      await this.putSecret(secretStoreId, '_token', this.cfg.packageToken);
+      secretPromises.push(this.putSecret(secretStoreId, '_token', this.cfg.packageToken));
     }
     if (this._cfg.fastlyGateway) {
-      await this.putSecret(secretStoreId, '_package', `https://${this._cfg.fastlyGateway}/${this.cfg.packageName}/`);
+      secretPromises.push(this.putSecret(secretStoreId, '_package', `https://${this._cfg.fastlyGateway}/${this.cfg.packageName}/`));
     }
+    await Promise.all(secretPromises);
 
     // Update config store with package params
     this.log.debug('--: updating config store with package params');
-    for (const [key, value] of Object.entries(this.cfg.packageParams)) {
-      await this.putConfigItem(configStoreId, key, value);
-    }
+    const configPromises = Object.entries(this.cfg.packageParams)
+      .map(([key, value]) => this.putConfigItem(configStoreId, key, value));
+    await Promise.all(configPromises);
 
     await this._fastly.discard();
   }
