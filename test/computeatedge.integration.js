@@ -74,22 +74,23 @@ describe('Fastly Compute@Edge Integration Test', () => {
     assert.ok(out.indexOf(`(${serviceID}) ok:`) > 0, `The function output should include the service ID: ${out}`);
     assert.ok(out.indexOf('dist/Test/fastly-bundle.tar.gz') > 0, out);
 
-    // Test CacheOverride API routes with HTTP requests
-    const { execa } = await import('execa');
-
+    // Test CacheOverride API routes with HTTP requests using native fetch
     // Test TTL override
-    const ttlResult = await execa('curl', ['-s', `${baseUrl}/cache-override-ttl`]);
-    assert.ok(ttlResult.stdout.indexOf('cache-override-ttl') > 0, 'Should test TTL override');
-    assert.ok(ttlResult.stdout.indexOf('ttl=3600') > 0, 'Should include TTL parameter');
+    const ttlResponse = await fetch(`${baseUrl}/cache-override-ttl`);
+    const ttlText = await ttlResponse.text();
+    assert.ok(ttlText.indexOf('cache-override-ttl') > 0, 'Should test TTL override');
+    assert.ok(ttlText.indexOf('ttl=3600') > 0, 'Should include TTL parameter');
 
     // Test pass mode
-    const passResult = await execa('curl', ['-s', `${baseUrl}/cache-override-pass`]);
-    assert.ok(passResult.stdout.indexOf('cache-override-pass') > 0, 'Should test pass mode');
-    assert.ok(passResult.stdout.indexOf('mode=pass') > 0, 'Should include pass mode parameter');
+    const passResponse = await fetch(`${baseUrl}/cache-override-pass`);
+    const passText = await passResponse.text();
+    assert.ok(passText.indexOf('cache-override-pass') > 0, 'Should test pass mode');
+    assert.ok(passText.indexOf('mode=pass') > 0, 'Should include pass mode parameter');
 
     // Test custom cache key
-    const keyResult = await execa('curl', ['-s', `${baseUrl}/cache-override-key`]);
-    assert.ok(keyResult.stdout.indexOf('cache-override-key') > 0, 'Should test custom cache key');
-    assert.ok(keyResult.stdout.indexOf('cacheKey=test-key') > 0, 'Should include cache key parameter');
+    const keyResponse = await fetch(`${baseUrl}/cache-override-key`);
+    const keyText = await keyResponse.text();
+    assert.ok(keyText.indexOf('cache-override-key') > 0, 'Should test custom cache key');
+    assert.ok(keyText.indexOf('cacheKey=test-key') > 0, 'Should include cache key parameter');
   }).timeout(10000000);
 });
