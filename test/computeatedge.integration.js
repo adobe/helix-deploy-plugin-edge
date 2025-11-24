@@ -35,8 +35,10 @@ describe('Fastly Compute@Edge Integration Test', () => {
     await fse.remove(testRoot);
   });
 
-  it('Deploy a pure action to Compute@Edge', async () => {
+  it('Deploy a pure action to Compute@Edge and test CacheOverride API', async () => {
     const serviceID = '1yv1Wl7NQCFmNBkW4L8htc';
+    const testDomain = 'possibly-working-sawfish';
+    const baseUrl = `https://${testDomain}.edgecompute.app`;
 
     await fse.copy(path.resolve(__rootdir, 'test', 'fixtures', 'edge-action'), testRoot);
     process.chdir(testRoot); // need to change .cwd() for yargs to pickup `wsk` in package.json
@@ -49,7 +51,7 @@ describe('Fastly Compute@Edge Integration Test', () => {
         '--target', 'c@e',
         '--arch', 'edge',
         '--compute-service-id', serviceID,
-        '--compute-test-domain', 'possibly-working-sawfish',
+        '--compute-test-domain', testDomain,
         '--package.name', 'Test',
         '--package.params', 'HEY=ho',
         '--package.params', 'ZIP=zap',
@@ -68,119 +70,26 @@ describe('Fastly Compute@Edge Integration Test', () => {
     const res = await builder.run();
     assert.ok(res);
     const out = builder.cfg._logger.output;
-    assert.ok(out.indexOf('possibly-working-sawfish.edgecompute.app') > 0, out);
+    assert.ok(out.indexOf(`${testDomain}.edgecompute.app`) > 0, out);
     assert.ok(out.indexOf(`(${serviceID}) ok:`) > 0, `The function output should include the service ID: ${out}`);
     assert.ok(out.indexOf('dist/Test/fastly-bundle.tar.gz') > 0, out);
-  }).timeout(10000000);
 
-  it('Test CacheOverride API - TTL', async () => {
-    const serviceID = '1yv1Wl7NQCFmNBkW4L8htc';
+    // Test CacheOverride API routes with HTTP requests
+    const { execa } = await import('execa');
 
-    await fse.copy(path.resolve(__rootdir, 'test', 'fixtures', 'edge-action'), testRoot);
-    process.chdir(testRoot);
-    const builder = await new CLI()
-      .prepare([
-        '--build',
-        '--plugin', resolve(__rootdir, 'src', 'index.js'),
-        '--verbose',
-        '--deploy',
-        '--target', 'c@e',
-        '--arch', 'edge',
-        '--compute-service-id', serviceID,
-        '--compute-test-domain', 'possibly-working-sawfish',
-        '--package.name', 'Test',
-        '--package.params', 'HEY=ho',
-        '--package.params', 'ZIP=zap',
-        '--update-package', 'true',
-        '--fastly-gateway', 'deploy-test.anywhere.run',
-        '--fastly-service-id', '4u8SAdblhzzbXntBYCjhcK',
-        '-p', 'FOO=bar',
-        '--test', '/cache-override-ttl',
-        '--directory', testRoot,
-        '--entryFile', 'src/index.js',
-        '--bundler', 'webpack',
-        '--esm', 'false',
-      ]);
-    builder.cfg._logger = new TestLogger();
+    // Test TTL override
+    const ttlResult = await execa('curl', ['-s', `${baseUrl}/cache-override-ttl`]);
+    assert.ok(ttlResult.stdout.indexOf('cache-override-ttl') > 0, 'Should test TTL override');
+    assert.ok(ttlResult.stdout.indexOf('ttl=3600') > 0, 'Should include TTL parameter');
 
-    const res = await builder.run();
-    assert.ok(res);
-    const out = builder.cfg._logger.output;
-    assert.ok(out.indexOf('cache-override-ttl') > 0, 'Should test TTL override');
-    assert.ok(out.indexOf('ttl=3600') > 0, 'Should include TTL parameter');
-  }).timeout(10000000);
+    // Test pass mode
+    const passResult = await execa('curl', ['-s', `${baseUrl}/cache-override-pass`]);
+    assert.ok(passResult.stdout.indexOf('cache-override-pass') > 0, 'Should test pass mode');
+    assert.ok(passResult.stdout.indexOf('mode=pass') > 0, 'Should include pass mode parameter');
 
-  it('Test CacheOverride API - Pass Mode', async () => {
-    const serviceID = '1yv1Wl7NQCFmNBkW4L8htc';
-
-    await fse.copy(path.resolve(__rootdir, 'test', 'fixtures', 'edge-action'), testRoot);
-    process.chdir(testRoot);
-    const builder = await new CLI()
-      .prepare([
-        '--build',
-        '--plugin', resolve(__rootdir, 'src', 'index.js'),
-        '--verbose',
-        '--deploy',
-        '--target', 'c@e',
-        '--arch', 'edge',
-        '--compute-service-id', serviceID,
-        '--compute-test-domain', 'possibly-working-sawfish',
-        '--package.name', 'Test',
-        '--package.params', 'HEY=ho',
-        '--package.params', 'ZIP=zap',
-        '--update-package', 'true',
-        '--fastly-gateway', 'deploy-test.anywhere.run',
-        '--fastly-service-id', '4u8SAdblhzzbXntBYCjhcK',
-        '-p', 'FOO=bar',
-        '--test', '/cache-override-pass',
-        '--directory', testRoot,
-        '--entryFile', 'src/index.js',
-        '--bundler', 'webpack',
-        '--esm', 'false',
-      ]);
-    builder.cfg._logger = new TestLogger();
-
-    const res = await builder.run();
-    assert.ok(res);
-    const out = builder.cfg._logger.output;
-    assert.ok(out.indexOf('cache-override-pass') > 0, 'Should test pass mode');
-    assert.ok(out.indexOf('mode=pass') > 0, 'Should include pass mode parameter');
-  }).timeout(10000000);
-
-  it('Test CacheOverride API - Custom Cache Key', async () => {
-    const serviceID = '1yv1Wl7NQCFmNBkW4L8htc';
-
-    await fse.copy(path.resolve(__rootdir, 'test', 'fixtures', 'edge-action'), testRoot);
-    process.chdir(testRoot);
-    const builder = await new CLI()
-      .prepare([
-        '--build',
-        '--plugin', resolve(__rootdir, 'src', 'index.js'),
-        '--verbose',
-        '--deploy',
-        '--target', 'c@e',
-        '--arch', 'edge',
-        '--compute-service-id', serviceID,
-        '--compute-test-domain', 'possibly-working-sawfish',
-        '--package.name', 'Test',
-        '--package.params', 'HEY=ho',
-        '--package.params', 'ZIP=zap',
-        '--update-package', 'true',
-        '--fastly-gateway', 'deploy-test.anywhere.run',
-        '--fastly-service-id', '4u8SAdblhzzbXntBYCjhcK',
-        '-p', 'FOO=bar',
-        '--test', '/cache-override-key',
-        '--directory', testRoot,
-        '--entryFile', 'src/index.js',
-        '--bundler', 'webpack',
-        '--esm', 'false',
-      ]);
-    builder.cfg._logger = new TestLogger();
-
-    const res = await builder.run();
-    assert.ok(res);
-    const out = builder.cfg._logger.output;
-    assert.ok(out.indexOf('cache-override-key') > 0, 'Should test custom cache key');
-    assert.ok(out.indexOf('cacheKey=test-key') > 0, 'Should include cache key parameter');
+    // Test custom cache key
+    const keyResult = await execa('curl', ['-s', `${baseUrl}/cache-override-key`]);
+    assert.ok(keyResult.stdout.indexOf('cache-override-key') > 0, 'Should test custom cache key');
+    assert.ok(keyResult.stdout.indexOf('cacheKey=test-key') > 0, 'Should include cache key parameter');
   }).timeout(10000000);
 });
