@@ -168,7 +168,9 @@ export default class CloudflareDeployer extends BaseDeployer {
         title: name,
       },
     });
-    let { result, errors } = await postres.json();
+    const postData = await postres.json();
+    let { result } = postData;
+    const { errors } = postData;
     if (!result) {
       if (errors) {
         this.log.debug(`KV namespace creation returned errors: ${JSON.stringify(errors)}`);
