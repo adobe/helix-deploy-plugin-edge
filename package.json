@@ -1,6 +1,6 @@
 {
   "name": "@adobe/helix-deploy-plugin-edge",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Helix Deploy - Plugin for Edge Compute",
   "main": "src/index.js",
   "type": "module",

@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.2.0...v1.2.1) (2025-11-24)
+
+
+### Bug Fixes
+
+* enable workers.dev subdomain after deployment ([b7a7cd2](https://github.com/adobe/helix-deploy-plugin-edge/commit/b7a7cd2e21cfb4f361977d842faf883b7934c2d1))
+
 # [1.2.0](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.1.17...v1.2.0) (2025-11-19)
 
 
