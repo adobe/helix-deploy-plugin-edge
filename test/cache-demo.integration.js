@@ -76,7 +76,7 @@ describe('CacheOverride Demo Integration Test', () => {
     assert.ok(out.indexOf('/cache-demo/short') > 0, 'Should list short cache route');
   }).timeout(10000000);
 
-  it.skip('Deploy cache-demo to Cloudflare', async () => {
+  it('Deploy cache-demo to Cloudflare', async () => {
     await fse.copy(path.resolve(__rootdir, 'test', 'fixtures', 'cache-demo'), testRoot);
     process.chdir(testRoot);
 
@@ -89,8 +89,9 @@ describe('CacheOverride Demo Integration Test', () => {
         '--plugin', path.resolve(__rootdir, 'src', 'index.js'),
         '--arch', 'edge',
         '--cloudflare-email', 'lars@trieloff.net',
-        '--cloudflare-account-id', 'b4adf6cfdac0918eb6aa5ad033da0747',
-        '--cloudflare-test-domain', 'rockerduck',
+        '--cloudflare-account-id', '155ec15a52a18a14801e04b019da5e5a',
+        '--cloudflare-test-domain', 'minivelos',
+        '--cloudflare-auth', process.env.CLOUDFLARE_AUTH,
         '--test', '/',
         '--directory', testRoot,
         '--entryFile', 'src/index.js',
@@ -104,7 +105,7 @@ describe('CacheOverride Demo Integration Test', () => {
     const out = builder.cfg._logger.output;
 
     // Verify deployment
-    assert.ok(out.indexOf('helix-services--cache-demo.rockerduck.workers.dev') > 0, out);
+    assert.ok(out.indexOf('helix-services--cache-demo.minivelos.workers.dev') > 0, out);
 
     // Verify the response contains expected structure
     assert.ok(out.indexOf('CacheOverride API Demo') > 0, 'Should return API info');
