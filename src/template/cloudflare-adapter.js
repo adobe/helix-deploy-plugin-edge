@@ -54,6 +54,7 @@ export async function handleRequest(event) {
 
     return await main(request, context);
   } catch (e) {
+    // eslint-disable-next-line no-console
     console.log(e.message);
     return new Response(`Error: ${e.message}`, { status: 500 });
   }
@@ -66,6 +67,7 @@ export async function handleRequest(event) {
 export default function cloudflare() {
   try {
     if (caches.default) {
+      // eslint-disable-next-line no-console
       console.log('detected cloudflare environment');
       return handleRequest;
     }

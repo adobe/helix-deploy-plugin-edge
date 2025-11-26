@@ -22,6 +22,7 @@ export function getEnvInfo(req, env) {
   const functionFQN = `${env('FASTLY_CUSTOMER_ID')}-${functionName}-${serviceVersion}`;
   const txId = req.headers.get('x-transaction-id') ?? env('FASTLY_TRACE_ID');
 
+  // eslint-disable-next-line no-console
   console.debug('Env info sv: ', serviceVersion, ' reqId: ', requestId, ' region: ', region, ' functionName: ', functionName, ' functionFQN: ', functionFQN, ' txId: ', txId);
 
   return {
@@ -46,6 +47,7 @@ export async function handleRequest(event) {
     const { request } = event;
     const env = await getEnvironmentInfo(request);
 
+    // eslint-disable-next-line no-console
     console.log('Fastly Adapter is here');
     // eslint-disable-next-line import/no-unresolved,global-require
     const { main } = require('./main.js');
@@ -90,6 +92,7 @@ export async function handleRequest(event) {
               });
             });
           } catch (err) {
+            // eslint-disable-next-line no-console
             console.error(`Error accessing secrets: ${err.message}`);
             return undefined;
           }
@@ -105,6 +108,7 @@ export async function handleRequest(event) {
 
     return await main(request, context);
   } catch (e) {
+    // eslint-disable-next-line no-console
     console.log(e.message);
     return new Response(`Error: ${e.message}`, { status: 500 });
   }
@@ -118,6 +122,7 @@ export default function fastly() {
   try {
     // todo: find better way to detect fastly environment, eg: import 'fastly:env'
     if (CacheOverride) {
+      // eslint-disable-next-line no-console
       console.log('detected fastly environment');
       return handleRequest;
     }
