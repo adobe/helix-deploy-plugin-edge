@@ -191,10 +191,16 @@ async function wrappedFetch(resource, options = {}) {
   // Check for Cloudflare dynamically (for testability)
   const isInCloudflare = typeof caches !== 'undefined' && caches.default !== undefined;
 
+  // On Cloudflare, strip out Fastly-specific options that aren't supported
   const { cacheOverride, ...restOptions } = options;
+  const {
+    backend: _backend,
+    cacheKey: _cacheKey,
+    ...cloudflareOptions
+  } = restOptions;
 
-  // Start with base options
-  let fetchOptions = { ...restOptions };
+  // Start with base options (strip Fastly-specific on Cloudflare)
+  let fetchOptions = isInCloudflare ? cloudflareOptions : restOptions;
 
   // Handle cacheOverride
   if (cacheOverride) {
