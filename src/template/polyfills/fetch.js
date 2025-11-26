@@ -11,56 +11,236 @@
  */
 /* eslint-env serviceworker */
 
-/**
- * Detects if the code is running in a Cloudflare Workers environment.
- * @returns {boolean} true if running on Cloudflare
- */
-function isCloudflareEnvironment() {
+// Platform detection and native CacheOverride loading
+let nativeCacheOverride = null;
+let isFastly = false;
+let isCloudflare = false;
+let fastlyModulePromise = null;
+
+// Try to import Fastly's CacheOverride module
+// Use a function to prevent webpack from trying to resolve this at build time
+async function loadFastlyModule() {
   try {
-    // caches is a Cloudflare-specific global (CacheStorage API)
-    return typeof caches !== 'undefined' && caches.default !== undefined;
+    // Dynamic import - webpack will leave this as-is because it's external
+    const moduleName = 'fastly:cache-override';
+    // eslint-disable-next-line import/no-unresolved
+    const module = await import(/* webpackIgnore: true */ moduleName);
+    nativeCacheOverride = module.CacheOverride;
+    isFastly = true;
+    return module;
   } catch {
-    return false;
+    // Not Fastly environment - this is expected on other platforms
+    return null;
   }
+}
+
+// Start loading the module if available
+try {
+  fastlyModulePromise = loadFastlyModule();
+} catch {
+  fastlyModulePromise = null;
+}
+
+// Detect Cloudflare environment
+try {
+  if (typeof caches !== 'undefined' && caches.default) {
+    isCloudflare = true;
+  }
+} catch {
+  // Not Cloudflare
 }
 
 /**
- * Wrapper for fetch that provides cross-platform decompression support.
- * Maps the @adobe/fetch `decompress` option to platform-specific behavior:
- * - Fastly: Sets fastly.decompressGzip based on decompress value
- * - Cloudflare: No-op (automatically decompresses)
- * - Node.js: Pass through to @adobe/fetch (handles it natively)
- *
- * @param {RequestInfo} resource - URL or Request object
- * @param {RequestInit & {decompress?: boolean, fastly?: object}} options - Fetch options
- * @returns {Promise<Response>} The fetch response
+ * Unified CacheOverride class that works across Fastly and Cloudflare platforms
  */
-function wrappedFetch(resource, options = {}) {
-  // Extract decompress option (default: true to match @adobe/fetch behavior)
-  const { decompress = true, fastly, ...otherOptions } = options;
+class UnifiedCacheOverride {
+  /**
+   * Creates a new CacheOverride instance
+   * @param {string|object} modeOrInit - Either a mode string or init object
+   * @param {object} [init] - Optional init object when mode is first param
+   * @param {number} [init.ttl] - Time-to-live in seconds
+   * @param {string} [init.cacheKey] - Custom cache key
+   * @param {string} [init.surrogateKey] - Surrogate keys for cache purging
+   */
+  constructor(modeOrInit, init) {
+    let mode;
+    let options;
 
-  // On Cloudflare: pass through as-is (auto-decompresses)
-  if (isCloudflareEnvironment()) {
-    return fetch(resource, options);
+    // Parse constructor arguments (supports both signatures)
+    if (typeof modeOrInit === 'string') {
+      mode = modeOrInit;
+      options = init || {};
+    } else {
+      mode = 'override';
+      options = modeOrInit || {};
+    }
+
+    // Validate that only supported cross-platform options are used
+    const supportedOptions = ['ttl', 'cacheKey', 'surrogateKey'];
+    const unsupported = Object.keys(options)
+      .filter((key) => !supportedOptions.includes(key));
+    if (unsupported.length > 0) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `CacheOverride: Unsupported options ignored: ${unsupported.join(', ')}`,
+      );
+    }
+
+    this.mode = mode;
+    this.options = {
+      ...(typeof options.ttl === 'number' && { ttl: options.ttl }),
+      ...(options.cacheKey && { cacheKey: options.cacheKey }),
+      ...(options.surrogateKey && { surrogateKey: options.surrogateKey }),
+    };
+
+    this.modeOrInit = modeOrInit;
+    this.native = null;
+    this.nativeInitialized = false;
   }
 
-  // On Fastly/Node.js: map decompress to fastly.decompressGzip
-  // This will be used on Fastly and ignored on Node.js
-  const fastlyOptions = {
-    decompressGzip: decompress,
-    ...fastly, // explicit fastly options override
-  };
-  return fetch(resource, { ...otherOptions, fastly: fastlyOptions });
+  /**
+   * Lazy initialization of native Fastly CacheOverride
+   * @private
+   */
+  async initNative() {
+    if (this.nativeInitialized) {
+      return;
+    }
+
+    this.nativeInitialized = true;
+
+    // Wait for Fastly module to load if needed
+    if (fastlyModulePromise) {
+      await fastlyModulePromise;
+    }
+
+    // Create native instance if on Fastly
+    if (isFastly && nativeCacheOverride) {
+      // eslint-disable-next-line new-cap
+      const NativeCacheOverride = nativeCacheOverride;
+      if (typeof this.modeOrInit === 'string') {
+        this.native = new NativeCacheOverride(this.modeOrInit, this.options);
+      } else {
+        this.native = new NativeCacheOverride(this.options);
+      }
+    }
+  }
+
+  /**
+   * Converts this CacheOverride to Cloudflare cf options
+   * @returns {object|undefined} Cloudflare cf object or undefined
+   */
+  toCloudflareOptions() {
+    const cf = {};
+
+    if (this.mode === 'pass') {
+      // Pass mode = don't cache
+      cf.cacheTtl = 0;
+      return cf;
+    }
+
+    if (this.mode === 'none') {
+      // None mode = respect origin headers (no cf options needed)
+      return undefined;
+    }
+
+    // Override mode - map cross-platform options
+    if (typeof this.options.ttl === 'number') {
+      cf.cacheTtl = this.options.ttl;
+    }
+
+    if (this.options.cacheKey) {
+      cf.cacheKey = this.options.cacheKey;
+    }
+
+    if (this.options.surrogateKey) {
+      // Map surrogateKey to cacheTags (Cloudflare uses array format)
+      cf.cacheTags = this.options.surrogateKey.split(/\s+/);
+    }
+
+    return Object.keys(cf).length > 0 ? cf : undefined;
+  }
+
+  /**
+   * Gets the native Fastly CacheOverride instance if available
+   * @returns {Promise<object|null>} Native CacheOverride or null
+   */
+  async getNative() {
+    await this.initNative();
+    return this.native || null;
+  }
 }
 
-// Export wrapped fetch and native Web APIs
-export { wrappedFetch as fetch };
-export const { Request, Response, Headers } = globalThis;
+// Store original fetch and other APIs
+const originalFetch = globalThis.fetch;
+const {
+  Request: OriginalRequest,
+  Response: OriginalResponse,
+  Headers: OriginalHeaders,
+} = globalThis;
 
-// Export for CommonJS (for compatibility with require() in bundled code)
+/**
+ * Wrapped fetch that supports both cacheOverride and decompress options
+ * @param {string|Request} resource - URL or Request object
+ * @param {object} [options] - Fetch options with cacheOverride and/or decompress
+ * @param {object} [options.cacheOverride] - CacheOverride instance for cache control
+ * @param {boolean} [options.decompress=true] - Whether to decompress gzip responses
+ * @param {object} [options.fastly] - Fastly-specific options
+ * @returns {Promise<Response>} Fetch response
+ */
+async function wrappedFetch(resource, options = {}) {
+  const { cacheOverride, decompress = true, fastly, ...restOptions } = options;
+
+  // Handle cacheOverride
+  let fetchOptions = { ...restOptions };
+
+  if (cacheOverride) {
+    // Initialize native CacheOverride on Fastly if needed
+    if (fastlyModulePromise || isFastly) {
+      await cacheOverride.initNative();
+    }
+
+    if (isFastly && cacheOverride.native) {
+      // On Fastly, use native CacheOverride
+      fetchOptions.cacheOverride = cacheOverride.native;
+    } else if (isCloudflare) {
+      // On Cloudflare, convert to cf options
+      const cfOptions = cacheOverride.toCloudflareOptions();
+      if (cfOptions) {
+        fetchOptions.cf = {
+          ...(fetchOptions.cf || {}),
+          ...cfOptions,
+        };
+      }
+    }
+  }
+
+  // Handle decompress option
+  // On Cloudflare: automatically decompresses, no action needed
+  // On Fastly/Node.js: map decompress to fastly.decompressGzip
+  if (!isCloudflare) {
+    const fastlyOptions = {
+      decompressGzip: decompress,
+      ...fastly, // explicit fastly options override
+    };
+    fetchOptions.fastly = fastlyOptions;
+  }
+
+  return originalFetch(resource, fetchOptions);
+}
+
+// Export as default for clean import syntax
 export default {
   fetch: wrappedFetch,
-  Request: globalThis.Request,
-  Response: globalThis.Response,
-  Headers: globalThis.Headers,
+  Request: OriginalRequest,
+  Response: OriginalResponse,
+  Headers: OriginalHeaders,
+  CacheOverride: UnifiedCacheOverride,
 };
+
+// Named exports for destructuring import syntax
+export const fetch = wrappedFetch;
+export const Request = OriginalRequest;
+export const Response = OriginalResponse;
+export const Headers = OriginalHeaders;
+export const CacheOverride = UnifiedCacheOverride;
