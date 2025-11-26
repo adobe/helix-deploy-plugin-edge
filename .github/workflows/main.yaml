@@ -24,16 +24,19 @@ jobs:
       - run: npm ci
       - run: npm install @adobe/helix-deploy
       - run: npm run lint
-      - run: npm test
-      - uses: codecov/codecov-action@v5
-        with:
-          flags: unittests
-          token: ${{ secrets.CODECOV_TOKEN }}
 
-      - run: npm run integration-ci
+      # Run all tests with combined coverage reporting
+      - name: Run all tests with coverage
+        run: npm run test-all
         env:
           HLX_FASTLY_AUTH: ${{ secrets.HLX_FASTLY_AUTH }}
           CLOUDFLARE_AUTH: ${{ secrets.CLOUDFLARE_AUTH }}
+
+      # Upload combined coverage after all tests complete
+      - uses: codecov/codecov-action@v5
+        with:
+          flags: unittests,integration
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Semantic Release (Dry Run)
         run: npm run semantic-release-dry

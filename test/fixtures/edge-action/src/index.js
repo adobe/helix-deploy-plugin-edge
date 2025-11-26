@@ -9,7 +9,15 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-import { Response, fetch, CacheOverride } from '@adobe/fetch';
+import { Response, fetch } from '@adobe/fetch';
+
+// CacheOverride is only available in Fastly Compute@Edge environment
+// Create a mock for testing environment
+const CacheOverride = globalThis.CacheOverride || class MockCacheOverride {
+  constructor(...args) {
+    this.args = args;
+  }
+};
 
 export async function main(req, context) {
   const url = new URL(req.url);
