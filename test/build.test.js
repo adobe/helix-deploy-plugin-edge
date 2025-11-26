@@ -49,6 +49,7 @@ async function assertZipEntries(zipPath, entries) {
 }
 
 const PROJECT_PURE = path.resolve(__rootdir, 'test', 'fixtures', 'pure-action');
+const PROJECT_DECOMPRESS = path.resolve(__rootdir, 'test', 'fixtures', 'decompress-test');
 
 describe('Edge Build Test', () => {
   let testRoot;
@@ -134,6 +135,40 @@ describe('Edge Build Test', () => {
     assert.strictEqual(result.error, undefined);
     assert.deepEqual(result.response.body, '{"url":"https://localhost/simple-package/simple-name/1.45.0","file":"Hello, world.\\n"}');
     */
+  })
+    .timeout(50000);
+
+  it('generates the bundle for decompress-test fixture', async () => {
+    await fse.remove(testRoot);
+    testRoot = await createTestRoot();
+    await fse.copy(PROJECT_DECOMPRESS, testRoot);
+
+    // need to change .cwd() for yargs to pickup `wsk` in package.json
+    process.chdir(testRoot);
+    process.env.WSK_AUTH = 'foobar';
+    process.env.WSK_NAMESPACE = 'foobar';
+    process.env.WSK_APIHOST = 'https://example.com';
+    process.env.__OW_ACTION_NAME = '/namespace/package/name@version';
+    const builder = await new CLI()
+      .prepare([
+        '--target', 'wsk',
+        '--plugin', path.resolve(__rootdir, 'src', 'index.js'),
+        '--bundler', 'webpack',
+        '--esm', 'false',
+        '--arch', 'edge',
+        '--verbose',
+        '--directory', testRoot,
+        '--entryFile', 'src/index.js',
+      ]);
+
+    await builder.run();
+
+    // The zip is created in dist/{package-name}/ not dist/default/
+    await assertZipEntries(path.resolve(testRoot, 'dist', 'decompress-package', 'decompress-test.zip'), [
+      'index.js',
+      'package.json',
+      'wrangler.toml',
+    ]);
   })
     .timeout(50000);
 });
