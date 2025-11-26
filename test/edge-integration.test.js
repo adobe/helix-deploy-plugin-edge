@@ -1,0 +1,219 @@
+/*
+ * Copyright 2021 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
+
+/* eslint-env mocha */
+/* eslint-disable no-underscore-dangle */
+import assert from 'assert';
+import { config } from 'dotenv';
+import { CLI } from '@adobe/helix-deploy';
+import fse from 'fs-extra';
+import path, { resolve } from 'path';
+import { createTestRoot, TestLogger } from './utils.js';
+
+config();
+
+describe('Edge Integration Test', () => {
+  let testRoot;
+  let origPwd;
+  const deployments = {};
+
+  async function deployToCloudflare() {
+    // Use static names to update existing worker instead of creating new ones
+
+    const builder = await new CLI()
+      .prepare([
+        '--build',
+        '--verbose',
+        '--deploy',
+        '--target', 'cloudflare',
+        '--plugin', path.resolve(__rootdir, 'src', 'index.js'),
+        '--arch', 'edge',
+        '--cloudflare-email', 'lars@trieloff.net',
+        '--cloudflare-account-id', '155ec15a52a18a14801e04b019da5e5a',
+        '--cloudflare-test-domain', 'minivelos',
+        '--cloudflare-auth', process.env.CLOUDFLARE_AUTH,
+        '--package.params', 'HEY=ho',
+        '--package.params', 'ZIP=zap',
+        '--update-package', 'true',
+        '-p', 'FOO=bar',
+        '--directory', testRoot,
+        '--entryFile', 'src/index.js',
+        '--bundler', 'webpack',
+        '--esm', 'false',
+      ]);
+    builder.cfg._logger = new TestLogger();
+
+    const res = await builder.run();
+    assert.ok(res, 'Cloudflare deployment should succeed');
+
+    return {
+      url: 'https://simple-package--simple-project.minivelos.workers.dev',
+      logger: builder.cfg._logger,
+    };
+  }
+
+  async function deployToFastly() {
+    const serviceID = '1yv1Wl7NQCFmNBkW4L8htc';
+    const testDomain = 'possibly-working-sawfish';
+    // Use the same package name as the existing working test
+    const packageName = 'Test';
+
+    const builder = await new CLI()
+      .prepare([
+        '--build',
+        '--plugin', resolve(__rootdir, 'src', 'index.js'),
+        '--verbose',
+        '--deploy',
+        '--target', 'c@e',
+        '--arch', 'edge',
+        '--compute-service-id', serviceID,
+        '--compute-test-domain', testDomain,
+        '--package.name', packageName,
+        '--package.params', 'HEY=ho',
+        '--package.params', 'ZIP=zap',
+        '--update-package', 'true',
+        '--fastly-gateway', 'deploy-test.anywhere.run',
+        '-p', 'FOO=bar',
+        '--fastly-service-id', '4u8SAdblhzzbXntBYCjhcK',
+        '--directory', testRoot,
+        '--entryFile', 'src/index.js',
+        '--bundler', 'webpack',
+        '--esm', 'false',
+      ]);
+    builder.cfg._logger = new TestLogger();
+
+    const res = await builder.run();
+    assert.ok(res, 'Fastly deployment should succeed');
+
+    return {
+      url: `https://${testDomain}.edgecompute.app`,
+      logger: builder.cfg._logger,
+    };
+  }
+
+  before(async function deployToBothPlatforms() {
+    this.timeout(600000); // 10 minutes for parallel deployment
+
+    testRoot = await createTestRoot();
+    origPwd = process.cwd();
+
+    // Copy the edge-action fixture
+    await fse.copy(path.resolve(__rootdir, 'test', 'fixtures', 'edge-action'), testRoot);
+    process.chdir(testRoot);
+
+    // eslint-disable-next-line no-console
+    console.log('--: Starting parallel deployment to Cloudflare and Fastly...');
+
+    // Deploy to both platforms in parallel
+    const [cloudflareResult, fastlyResult] = await Promise.all([
+      deployToCloudflare(),
+      deployToFastly(),
+    ]);
+
+    deployments.cloudflare = cloudflareResult;
+    deployments.fastly = fastlyResult;
+
+    // eslint-disable-next-line no-console
+    console.log('--: Parallel deployment completed');
+    // eslint-disable-next-line no-console
+    console.log(`--: Cloudflare URL: ${deployments.cloudflare.url}`);
+    // eslint-disable-next-line no-console
+    console.log(`--: Fastly URL: ${deployments.fastly.url}`);
+  });
+
+  after(() => {
+    process.chdir(origPwd);
+  });
+
+  // Test suite that runs against both platforms
+  ['cloudflare', 'fastly'].forEach((platform) => {
+    describe(`${platform.charAt(0).toUpperCase() + platform.slice(1)} Platform`, () => {
+      let baseUrl;
+
+      before(() => {
+        baseUrl = deployments[platform].url;
+      });
+
+      it('should access environment variables correctly', async () => {
+        // eslint-disable-next-line no-console
+        console.log(`Testing ${platform}: ${baseUrl}/201`);
+        const response = await fetch(`${baseUrl}/201`);
+        const text = await response.text();
+
+        assert.ok(response.status === 200, `Response should be 200, got ${response.status}`);
+        assert.ok(text.includes('ok: ho bar'), `Response should include env vars: ${text}`);
+        // Accept 200, 201, or 503 since backend status can vary
+        assert.ok(text.includes('– 200') || text.includes('– 201') || text.includes('– 503'), `Response should include backend status: ${text}`);
+      });
+
+      it('should handle logging functionality', async () => {
+        const response = await fetch(`${baseUrl}/?operation=verbose`);
+        const text = await response.text();
+
+        assert.ok(response.status === 200, `Logging endpoint should return 200, got ${response.status}`);
+        assert.ok(text.includes('"status":"ok"'), `Response should include status ok: ${text}`);
+        assert.ok(text.includes('"logging":"enabled"'), `Response should indicate logging is enabled: ${text}`);
+        assert.ok(text.includes('"timestamp"'), `Response should include timestamp: ${text}`);
+      });
+
+      it('should support TTL cache override', async () => {
+        const response = await fetch(`${baseUrl}/cache-override-ttl`);
+        const text = await response.text();
+
+        assert.ok(response.status === 200, `Cache override TTL should return 200, got ${response.status}`);
+        assert.ok(text.includes('cache-override-ttl'), `Response should include route name: ${text}`);
+        assert.ok(text.includes('ttl=3600'), `Response should include TTL parameter: ${text}`);
+        // Accept 200, 201, or 503 since backend status can vary
+        assert.ok(text.includes('– 200') || text.includes('– 201') || text.includes('– 503'), `Response should include backend status: ${text}`);
+      });
+
+      it('should support pass mode cache override', async () => {
+        const response = await fetch(`${baseUrl}/cache-override-pass`);
+        const text = await response.text();
+
+        assert.ok(response.status === 200, `Cache override pass should return 200, got ${response.status}`);
+        assert.ok(text.includes('cache-override-pass'), `Response should include route name: ${text}`);
+        assert.ok(text.includes('mode=pass'), `Response should include pass mode: ${text}`);
+        // Accept 200, 201, or 503 since backend status can vary
+        assert.ok(text.includes('– 200') || text.includes('– 201') || text.includes('– 503'), `Response should include backend status: ${text}`);
+      });
+
+      it('should support custom cache key override', async () => {
+        const response = await fetch(`${baseUrl}/cache-override-key`);
+        const text = await response.text();
+
+        assert.ok(response.status === 200, `Cache override key should return 200, got ${response.status}`);
+        assert.ok(text.includes('cache-override-key'), `Response should include route name: ${text}`);
+        assert.ok(text.includes('cacheKey=test-key'), `Response should include cache key: ${text}`);
+        // Accept 200, 201, or 503 since backend status can vary
+        assert.ok(text.includes('– 200') || text.includes('– 201') || text.includes('– 503'), `Response should include backend status: ${text}`);
+      });
+
+      it('should handle package and action parameters correctly', async () => {
+        const response = await fetch(`${baseUrl}/201`);
+        const text = await response.text();
+
+        // Verify both package params (HEY=ho) and action params (FOO=bar) are accessible
+        assert.ok(text.includes('ho'), `Response should include package param HEY=ho: ${text}`);
+        assert.ok(text.includes('bar'), `Response should include action param FOO=bar: ${text}`);
+
+        // Verify the service/function identifier is present
+        if (platform === 'fastly') {
+          assert.ok(text.includes('1yv1Wl7NQCFmNBkW4L8htc'), `Response should include Fastly service ID: ${text}`);
+        } else {
+          // Cloudflare now returns the function name extracted from hostname
+          assert.ok(text.includes('simple-package--simple-project'), `Response should include Cloudflare function name: ${text}`);
+        }
+      });
+    });
+  });
+});

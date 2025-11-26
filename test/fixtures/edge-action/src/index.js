@@ -20,7 +20,6 @@ export async function main(req, context) {
     // Test: TTL override
     const cacheOverride = new CacheOverride('override', { ttl: 3600 });
     const backendResponse = await fetch('https://www.aem.live/', {
-      backend: 'www.aem.live',
       cacheOverride,
     });
     const contentLength = backendResponse.headers.get('content-length') || 'unknown';
@@ -31,7 +30,6 @@ export async function main(req, context) {
     // Test: Pass mode (no caching)
     const cacheOverride = new CacheOverride('pass');
     const backendResponse = await fetch('https://www.aem.live/', {
-      backend: 'www.aem.live',
       cacheOverride,
     });
     const contentLength = backendResponse.headers.get('content-length') || 'unknown';
@@ -42,7 +40,6 @@ export async function main(req, context) {
     // Test: Custom cache key
     const cacheOverride = new CacheOverride({ ttl: 300, cacheKey: 'test-key' });
     const backendResponse = await fetch('https://www.aem.live/', {
-      backend: 'www.aem.live',
       cacheOverride,
     });
     const contentLength = backendResponse.headers.get('content-length') || 'unknown';
@@ -91,11 +88,11 @@ export async function main(req, context) {
   }
 
   // Original status code test - use reliable endpoint (v2)
+  // eslint-disable-next-line no-console
   console.log(req.url, 'https://www.aem.live/ (updated)');
-  const backendresponse = await fetch('https://www.aem.live/', {
-    backend: 'www.aem.live',
-  });
+  const backendresponse = await fetch('https://www.aem.live/');
   const contentLength = backendresponse.headers.get('content-length') || 'unknown';
+  // eslint-disable-next-line no-console
   console.log(`Response: ${backendresponse.status}, Content-Length: ${contentLength}`);
   return new Response(`(${context?.func?.name}) ok: ${await context.env.HEY} ${await context.env.FOO} – ${backendresponse.status}`);
 }

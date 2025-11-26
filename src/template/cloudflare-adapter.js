@@ -28,7 +28,10 @@ export async function handleRequest(event) {
         region: request.cf.colo,
       },
       func: {
-        name: null,
+        // Extract worker name from request URL hostname
+        name: request.url
+          ? new URL(request.url).hostname.split('.')[0]
+          : 'cloudflare-worker',
         package: null,
         version: null,
         fqn: null,
