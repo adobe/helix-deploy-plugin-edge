@@ -128,14 +128,30 @@ service_id = ""
       this.log.debug(`--: getting or creating action secret store: ${actionStoreName}`);
       const actionStore = await this._fastly.writeSecretStore(actionStoreName);
       const actionStoreId = actionStore.data.id;
-      await this._fastly.writeResource(version, actionStoreId, 'action_secrets');
+      try {
+        await this._fastly.writeResource(version, actionStoreId, 'action_secrets');
+      } catch (error) {
+        if (error.message && error.message.includes('Duplicate link')) {
+          this.log.debug('--: action_secrets resource link already exists, skipping');
+        } else {
+          throw error;
+        }
+      }
 
       // Get or create package secret store (for package-wide params)
       const packageStoreName = this.cfg.packageName;
       this.log.debug(`--: getting or creating package secret store: ${packageStoreName}`);
       const packageStore = await this._fastly.writeSecretStore(packageStoreName);
       const packageStoreId = packageStore.data.id;
-      await this._fastly.writeResource(version, packageStoreId, 'package_secrets');
+      try {
+        await this._fastly.writeResource(version, packageStoreId, 'package_secrets');
+      } catch (error) {
+        if (error.message && error.message.includes('Duplicate link')) {
+          this.log.debug('--: package_secrets resource link already exists, skipping');
+        } else {
+          throw error;
+        }
+      }
 
       // Populate action secret store with action params
       this.log.debug('--: populating action secret store with action params');
