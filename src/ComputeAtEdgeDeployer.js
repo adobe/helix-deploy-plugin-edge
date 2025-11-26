@@ -58,59 +58,6 @@ export default class ComputeAtEdgeDeployer extends BaseDeployer {
   }
 
   /**
-   * Get or create a secret store using the new fastly-native-promises API
-   * @param {string} name - Name of the secret store
-   * @returns {Promise<string>} - Store ID
-   */
-  async getOrCreateSecretStore(name) {
-    const store = await this._fastly.writeSecretStore(name);
-    return store.data.id;
-  }
-
-  /**
-   * Get or create a config store using the new fastly-native-promises API
-   * @param {string} name - Name of the config store
-   * @returns {Promise<string>} - Store ID
-   */
-  async getOrCreateConfigStore(name) {
-    const store = await this._fastly.writeConfigStore(name);
-    return store.data.id;
-  }
-
-  /**
-   * Link a resource (secret/config store) to a service version using the new API
-   * @param {string} version - Service version
-   * @param {string} resourceId - Resource store ID
-   * @param {string} name - Name to use in the service
-   * @returns {Promise<void>}
-   */
-  async linkResource(version, resourceId, name) {
-    await this._fastly.writeResource(version, resourceId, name);
-  }
-
-  /**
-   * Add or update a secret in a secret store using the new fastly-native-promises API
-   * @param {string} storeId - Secret store ID
-   * @param {string} name - Secret name
-   * @param {string} value - Secret value
-   * @returns {Promise<void>}
-   */
-  async putSecret(storeId, name, value) {
-    await this._fastly.putSecret(storeId, name, value);
-  }
-
-  /**
-   * Add or update an item in a config store using the new fastly-native-promises API
-   * @param {string} storeId - Config store ID
-   * @param {string} key - Item key
-   * @param {string} value - Item value
-   * @returns {Promise<void>}
-   */
-  async putConfigItem(storeId, key, value) {
-    await this._fastly.putConfigItem(storeId, key, value);
-  }
-
-  /**
    *
    * @returns
    */
@@ -179,25 +126,27 @@ service_id = ""
       // Get or create action secret store (for action-specific params)
       const actionStoreName = this.fullFunctionName;
       this.log.debug(`--: getting or creating action secret store: ${actionStoreName}`);
-      const actionStoreId = await this.getOrCreateSecretStore(actionStoreName);
-      await this.linkResource(version, actionStoreId, 'action_secrets');
+      const actionStore = await this._fastly.writeSecretStore(actionStoreName);
+      const actionStoreId = actionStore.data.id;
+      await this._fastly.writeResource(version, actionStoreId, 'action_secrets');
 
       // Get or create package secret store (for package-wide params)
       const packageStoreName = this.cfg.packageName;
       this.log.debug(`--: getting or creating package secret store: ${packageStoreName}`);
-      const packageStoreId = await this.getOrCreateSecretStore(packageStoreName);
-      await this.linkResource(version, packageStoreId, 'package_secrets');
+      const packageStore = await this._fastly.writeSecretStore(packageStoreName);
+      const packageStoreId = packageStore.data.id;
+      await this._fastly.writeResource(version, packageStoreId, 'package_secrets');
 
       // Populate action secret store with action params
       this.log.debug('--: populating action secret store with action params');
       const actionSecretPromises = Object.entries(this.cfg.params)
-        .map(([key, value]) => this.putSecret(actionStoreId, key, value));
+        .map(([key, value]) => this._fastly.putSecret(actionStoreId, key, value));
       await Promise.all(actionSecretPromises);
 
       // Populate package secret store with package params
       this.log.debug('--: populating package secret store with package params');
       const packageSecretPromises = Object.entries(this.cfg.packageParams)
-        .map(([key, value]) => this.putSecret(packageStoreId, key, value));
+        .map(([key, value]) => this._fastly.putSecret(packageStoreId, key, value));
       await Promise.all(packageSecretPromises);
     }, true);
 
@@ -219,19 +168,21 @@ service_id = ""
     const actionStoreName = this.fullFunctionName;
     const packageStoreName = this.cfg.packageName;
     this.log.debug(`--: looking up store IDs for ${actionStoreName} and ${packageStoreName}`);
-    const actionStoreId = await this.getOrCreateSecretStore(actionStoreName);
-    const packageStoreId = await this.getOrCreateSecretStore(packageStoreName);
+    const actionStore = await this._fastly.writeSecretStore(actionStoreName);
+    const actionStoreId = actionStore.data.id;
+    const packageStore = await this._fastly.writeSecretStore(packageStoreName);
+    const packageStoreId = packageStore.data.id;
 
     // Update action secret store with action params
     this.log.debug('--: updating action secret store with action params');
     const actionSecretPromises = Object.entries(this.cfg.params)
-      .map(([key, value]) => this.putSecret(actionStoreId, key, value));
+      .map(([key, value]) => this._fastly.putSecret(actionStoreId, key, value));
     await Promise.all(actionSecretPromises);
 
     // Update package secret store with package params
     this.log.debug('--: updating package secret store with package params');
     const packageSecretPromises = Object.entries(this.cfg.packageParams)
-      .map(([key, value]) => this.putSecret(packageStoreId, key, value));
+      .map(([key, value]) => this._fastly.putSecret(packageStoreId, key, value));
     await Promise.all(packageSecretPromises);
 
     await this._fastly.discard();
