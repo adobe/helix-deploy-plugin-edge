@@ -58,140 +58,56 @@ export default class ComputeAtEdgeDeployer extends BaseDeployer {
   }
 
   /**
-   * Get or create a secret store via Fastly API
+   * Get or create a secret store using the new fastly-native-promises API
    * @param {string} name - Name of the secret store
    * @returns {Promise<string>} - Store ID
    */
   async getOrCreateSecretStore(name) {
-    // Try to list stores and find by name
-    try {
-      const listRes = await this.fetch('https://api.fastly.com/resources/stores/secret', {
-        method: 'GET',
-        headers: {
-          'Fastly-Key': this._cfg.auth,
-          Accept: 'application/json',
-        },
-      });
-      const stores = await listRes.json();
-      const existing = stores.data?.find((s) => s.name === name);
-      if (existing) {
-        return existing.id;
-      }
-    } catch (err) {
-      this.log.debug(`Could not list secret stores: ${err.message}`);
-    }
-
-    // Create new store
-    const res = await this.fetch('https://api.fastly.com/resources/stores/secret', {
-      method: 'POST',
-      headers: {
-        'Fastly-Key': this._cfg.auth,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ name }),
-    });
-    const data = await res.json();
-    return data.id || data.store_id;
+    const store = await this._fastly.writeSecretStore(name);
+    return store.data.id;
   }
 
   /**
-   * Get or create a config store via Fastly API
+   * Get or create a config store using the new fastly-native-promises API
    * @param {string} name - Name of the config store
    * @returns {Promise<string>} - Store ID
    */
   async getOrCreateConfigStore(name) {
-    // Try to list stores and find by name
-    try {
-      const listRes = await this.fetch('https://api.fastly.com/resources/stores/config', {
-        method: 'GET',
-        headers: {
-          'Fastly-Key': this._cfg.auth,
-          Accept: 'application/json',
-        },
-      });
-      const stores = await listRes.json();
-      const existing = stores.data?.find((s) => s.name === name);
-      if (existing) {
-        return existing.id;
-      }
-    } catch (err) {
-      this.log.debug(`Could not list config stores: ${err.message}`);
-    }
-
-    // Create new store
-    const res = await this.fetch('https://api.fastly.com/resources/stores/config', {
-      method: 'POST',
-      headers: {
-        'Fastly-Key': this._cfg.auth,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ name }),
-    });
-    const data = await res.json();
-    return data.id || data.store_id;
+    const store = await this._fastly.writeConfigStore(name);
+    return store.data.id;
   }
 
   /**
-   * Link a resource (secret/config store) to a service version
+   * Link a resource (secret/config store) to a service version using the new API
    * @param {string} version - Service version
    * @param {string} resourceId - Resource store ID
    * @param {string} name - Name to use in the service
    * @returns {Promise<void>}
    */
   async linkResource(version, resourceId, name) {
-    const url = `https://api.fastly.com/service/${this._cfg.service}/version/${version}/resource`;
-    await this.fetch(url, {
-      method: 'POST',
-      headers: {
-        'Fastly-Key': this._cfg.auth,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({
-        name,
-        resource_id: resourceId,
-      }),
-    });
+    await this._fastly.writeResource(version, resourceId, name);
   }
 
   /**
-   * Add or update a secret in a secret store
+   * Add or update a secret in a secret store using the new fastly-native-promises API
    * @param {string} storeId - Secret store ID
    * @param {string} name - Secret name
    * @param {string} value - Secret value
    * @returns {Promise<void>}
    */
   async putSecret(storeId, name, value) {
-    await this.fetch(`https://api.fastly.com/resources/stores/secret/${storeId}/secrets`, {
-      method: 'PUT',
-      headers: {
-        'Fastly-Key': this._cfg.auth,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ name, secret: value }),
-    });
+    await this._fastly.putSecret(storeId, name, value);
   }
 
   /**
-   * Add or update an item in a config store
+   * Add or update an item in a config store using the new fastly-native-promises API
    * @param {string} storeId - Config store ID
    * @param {string} key - Item key
    * @param {string} value - Item value
    * @returns {Promise<void>}
    */
   async putConfigItem(storeId, key, value) {
-    await this.fetch(`https://api.fastly.com/resources/stores/config/${storeId}/item/${encodeURIComponent(key)}`, {
-      method: 'PUT',
-      headers: {
-        'Fastly-Key': this._cfg.auth,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ item_key: key, item_value: value }),
-    });
+    await this._fastly.putConfigItem(storeId, key, value);
   }
 
   /**
