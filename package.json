@@ -8,7 +8,6 @@
     "test": "c8 --exclude 'test/fixtures/**' mocha -i -g Integration",
     "test-all": "c8 --exclude 'test/fixtures/**' mocha",
     "integration-ci": "c8 --exclude 'test/fixtures/**' mocha -g Integration",
-    "edge-integration": "c8 --exclude 'test/fixtures/**' mocha test/edge-integration.test.js",
     "lint": "eslint .",
     "semantic-release": "semantic-release",
     "semantic-release-dry": "semantic-release --dry-run --branches $CI_BRANCH",
