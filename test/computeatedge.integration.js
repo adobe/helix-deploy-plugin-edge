@@ -36,6 +36,10 @@ describe('Fastly Compute@Edge Integration Test', () => {
   });
 
   it('Deploy a pure action to Compute@Edge and test CacheOverride API', async () => {
+    // Fail explicitly if required credentials are missing
+    if (!process.env.HLX_FASTLY_AUTH) {
+      throw new Error('HLX_FASTLY_AUTH environment variable is required for Fastly integration tests. Please set it in GitHub repository secrets.');
+    }
     const serviceID = '1yv1Wl7NQCFmNBkW4L8htc';
     const testDomain = 'possibly-working-sawfish';
     const baseUrl = `https://${testDomain}.edgecompute.app`;

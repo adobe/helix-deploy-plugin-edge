@@ -103,6 +103,14 @@ describe('Edge Integration Test', () => {
   before(async function deployToBothPlatforms() {
     this.timeout(600000); // 10 minutes for parallel deployment
 
+    // Fail explicitly if required credentials are missing
+    if (!process.env.HLX_FASTLY_AUTH) {
+      throw new Error('HLX_FASTLY_AUTH environment variable is required for Fastly integration tests. Please set it in GitHub repository secrets.');
+    }
+    if (!process.env.CLOUDFLARE_AUTH) {
+      throw new Error('CLOUDFLARE_AUTH environment variable is required for Cloudflare integration tests. Please set it in GitHub repository secrets.');
+    }
+
     testRoot = await createTestRoot();
     origPwd = process.cwd();
 
