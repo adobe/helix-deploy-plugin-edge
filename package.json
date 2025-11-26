@@ -1,6 +1,6 @@
 {
   "name": "@adobe/helix-deploy-plugin-edge",
-  "version": "1.2.1",
+  "version": "1.2.3",
   "description": "Helix Deploy - Plugin for Edge Compute",
   "main": "src/index.js",
   "type": "module",
@@ -41,10 +41,10 @@
     "fs-extra": "11.3.2",
     "husky": "9.1.7",
     "lint-staged": "16.2.6",
-    "mocha": "11.7.4",
+    "mocha": "11.7.5",
     "mocha-multi-reporters": "1.5.1",
     "nock": "13.5.6",
-    "semantic-release": "25.0.1",
+    "semantic-release": "25.0.2",
     "yauzl": "3.2.0"
   },
   "lint-staged": {
@@ -56,8 +56,8 @@
     "@adobe/helix-deploy-plugin-webpack": "^1.0.2"
   },
   "dependencies": {
-    "@adobe/fastly-native-promises": "3.0.18",
-    "@fastly/js-compute": "3.35.1",
+    "@adobe/fastly-native-promises": "3.0.19",
+    "@fastly/js-compute": "3.35.2",
     "chalk-template": "1.1.2",
     "constants-browserify": "1.0.0",
     "form-data": "4.0.4",
