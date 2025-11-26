@@ -194,10 +194,9 @@ async function wrappedFetch(resource, options = {}) {
   } = options;
 
   // Start with base options
-  const baseFetchOptions = { ...restOptions };
+  let fetchOptions = { ...restOptions };
 
   // Handle cacheOverride
-  let cacheOptions = {};
   if (cacheOverride) {
     // Initialize native CacheOverride on Fastly if needed
     if (fastlyModulePromise || isFastly) {
@@ -206,14 +205,20 @@ async function wrappedFetch(resource, options = {}) {
 
     if (isFastly && cacheOverride.native) {
       // On Fastly, use native CacheOverride
-      cacheOptions.cacheOverride = cacheOverride.native;
+      fetchOptions = {
+        ...fetchOptions,
+        cacheOverride: cacheOverride.native,
+      };
     } else if (isCloudflare) {
       // On Cloudflare, convert to cf options
       const cfOptions = cacheOverride.toCloudflareOptions();
       if (cfOptions) {
-        cacheOptions.cf = {
-          ...(baseFetchOptions.cf || {}),
-          ...cfOptions,
+        fetchOptions = {
+          ...fetchOptions,
+          cf: {
+            ...(fetchOptions.cf || {}),
+            ...cfOptions,
+          },
         };
       }
     }
@@ -222,22 +227,15 @@ async function wrappedFetch(resource, options = {}) {
   // Handle decompress option
   // On Cloudflare: automatically decompresses, no action needed
   // On Fastly/Node.js: map decompress to fastly.decompressGzip
-  let decompressOptions = {};
   if (!isCloudflare) {
-    decompressOptions = {
+    fetchOptions = {
+      ...fetchOptions,
       fastly: {
         decompressGzip: decompress,
         ...fastly, // explicit fastly options override
       },
     };
   }
-
-  // Combine all options
-  const fetchOptions = {
-    ...baseFetchOptions,
-    ...cacheOptions,
-    ...decompressOptions,
-  };
 
   return originalFetch(resource, fetchOptions);
 }
