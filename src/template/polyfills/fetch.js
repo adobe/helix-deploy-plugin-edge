@@ -193,9 +193,10 @@ async function wrappedFetch(resource, options = {}) {
 
   // On Cloudflare, strip out Fastly-specific options that aren't supported
   const { cacheOverride, ...restOptions } = options;
+  // eslint-disable-next-line no-unused-vars
   const {
-    backend: _backend,
-    cacheKey: _cacheKey,
+    backend: _,
+    cacheKey: __,
     ...cloudflareOptions
   } = restOptions;
 
