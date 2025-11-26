@@ -189,11 +189,15 @@ const {
  * @returns {Promise<Response>} Fetch response
  */
 async function wrappedFetch(resource, options = {}) {
-  const { cacheOverride, decompress = true, fastly, ...restOptions } = options;
+  const {
+    cacheOverride, decompress = true, fastly, ...restOptions
+  } = options;
+
+  // Start with base options
+  const baseFetchOptions = { ...restOptions };
 
   // Handle cacheOverride
-  let fetchOptions = { ...restOptions };
-
+  let cacheOptions = {};
   if (cacheOverride) {
     // Initialize native CacheOverride on Fastly if needed
     if (fastlyModulePromise || isFastly) {
@@ -202,13 +206,13 @@ async function wrappedFetch(resource, options = {}) {
 
     if (isFastly && cacheOverride.native) {
       // On Fastly, use native CacheOverride
-      fetchOptions.cacheOverride = cacheOverride.native;
+      cacheOptions.cacheOverride = cacheOverride.native;
     } else if (isCloudflare) {
       // On Cloudflare, convert to cf options
       const cfOptions = cacheOverride.toCloudflareOptions();
       if (cfOptions) {
-        fetchOptions.cf = {
-          ...(fetchOptions.cf || {}),
+        cacheOptions.cf = {
+          ...(baseFetchOptions.cf || {}),
           ...cfOptions,
         };
       }
@@ -218,13 +222,22 @@ async function wrappedFetch(resource, options = {}) {
   // Handle decompress option
   // On Cloudflare: automatically decompresses, no action needed
   // On Fastly/Node.js: map decompress to fastly.decompressGzip
+  let decompressOptions = {};
   if (!isCloudflare) {
-    const fastlyOptions = {
-      decompressGzip: decompress,
-      ...fastly, // explicit fastly options override
+    decompressOptions = {
+      fastly: {
+        decompressGzip: decompress,
+        ...fastly, // explicit fastly options override
+      },
     };
-    fetchOptions.fastly = fastlyOptions;
   }
+
+  // Combine all options
+  const fetchOptions = {
+    ...baseFetchOptions,
+    ...cacheOptions,
+    ...decompressOptions,
+  };
 
   return originalFetch(resource, fetchOptions);
 }
