@@ -74,6 +74,12 @@ export default class FastlyGateway {
     return this.cfg.log;
   }
 
+  async updatePackage() {
+    // No-op: FastlyGateway no longer manages package parameters
+    // Package parameters are now handled by individual deployers
+    this.log.debug('updatePackage called but is no-op for FastlyGateway');
+  }
+
   selectBackendVCL() {
     // declare a local variable for each backend
     const init = this._deployers.map((deployer) => `declare local var.${deployer.name.toLowerCase()} INTEGER;`);
