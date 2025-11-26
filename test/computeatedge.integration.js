@@ -19,7 +19,10 @@ import fse from 'fs-extra';
 import path, { resolve } from 'path';
 import { createTestRoot, TestLogger } from './utils.js';
 
-config();
+// Only load .env if environment variables aren't already set (e.g., in CI)
+if (!process.env.HLX_FASTLY_AUTH || !process.env.CLOUDFLARE_AUTH) {
+  config();
+}
 
 describe('Fastly Compute@Edge Integration Test', () => {
   let testRoot;

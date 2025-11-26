@@ -19,7 +19,10 @@ import { config } from 'dotenv';
 import { CLI } from '@adobe/helix-deploy';
 import { createTestRoot, TestLogger } from './utils.js';
 
-config();
+// Only load .env if environment variables aren't already set (e.g., in CI)
+if (!process.env.HLX_FASTLY_AUTH || !process.env.CLOUDFLARE_AUTH) {
+  config();
+}
 
 describe('Cloudflare Integration Test', () => {
   let testRoot;
