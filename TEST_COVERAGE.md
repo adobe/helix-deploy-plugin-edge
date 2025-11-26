@@ -51,25 +51,35 @@
 
 ### ✅ Compute@Edge Integration Test
 **File**: `test/computeatedge.integration.js`
-- ✅ Deploys `logging-example` fixture to real Fastly service
+- ✅ Deploys `edge-action` fixture to real Fastly service
 - ✅ Verifies deployment succeeds
-- ✅ Verifies worker responds with correct JSON
-- ✅ Tests context.log in actual Fastly environment
+- ✅ Tests CacheOverride API functionality
+- ✅ Tests Secret Store/Config Store integration
 
 ### ✅ Cloudflare Integration Test
 **File**: `test/cloudflare.integration.js`
-- ✅ Deploys `logging-example` fixture to Cloudflare Workers
+- ✅ Deploys `pure-action` fixture to Cloudflare Workers
 - ✅ Verifies deployment succeeds
-- ✅ Verifies worker responds with correct JSON
-- ✅ Tests dynamic logger configuration
+- ✅ Verifies worker responds correctly
+- ✅ Tests environment variable access
+
+### ✅ Edge Integration Test
+**File**: `test/edge-integration.test.js`
+- ✅ Comprehensive Secret Store/Config Store testing
+- ✅ Parallel deployment to both Cloudflare and Fastly
+- ✅ Tests environment variables, logging, and CacheOverride API
+- ✅ 12 test cases across both platforms
 - ⚠️ Currently skipped (requires Cloudflare credentials)
 
 ## Test Fixtures
 
-### ✅ `test/fixtures/logging-example/`
-**Purpose**: Comprehensive logging demonstration
+### ✅ `test/fixtures/edge-action/`
+**Purpose**: Comprehensive edge functionality testing
 **Features**:
-- ✅ All 7 log levels demonstrated
+- ✅ Secret Store/Config Store integration
+- ✅ CacheOverride API testing
+- ✅ Environment variable access
+- ✅ Logging functionality
 - ✅ Structured object logging
 - ✅ Plain string logging
 - ✅ Dynamic logger configuration via query params
@@ -117,7 +127,7 @@ The test coverage is **comprehensive and appropriate**:
 
 1. **All testable code is tested** (96-100% coverage)
 2. **Platform-specific code has integration tests** (actual deployments)
-3. **Test fixtures demonstrate all features** (logging-example)
+3. **Test fixtures demonstrate all features** (edge-action, pure-action)
 4. **Both Fastly and Cloudflare paths are validated**
 
 The 56% overall coverage number is **expected and acceptable** because:
