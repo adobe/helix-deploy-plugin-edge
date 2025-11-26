@@ -171,8 +171,7 @@ class UnifiedCacheOverride {
   }
 }
 
-// Store original fetch and other APIs
-const originalFetch = globalThis.fetch;
+// Store other APIs (but not fetch - we'll call it dynamically for testability)
 const {
   Request: OriginalRequest,
   Response: OriginalResponse,
@@ -189,9 +188,10 @@ const {
  * @returns {Promise<Response>} Fetch response
  */
 async function wrappedFetch(resource, options = {}) {
-  const {
-    cacheOverride, decompress = true, fastly, ...restOptions
-  } = options;
+  // Check for Cloudflare dynamically (for testability)
+  const isInCloudflare = typeof caches !== 'undefined' && caches.default !== undefined;
+
+  const { cacheOverride, ...restOptions } = options;
 
   // Start with base options
   let fetchOptions = { ...restOptions };
@@ -225,11 +225,12 @@ async function wrappedFetch(resource, options = {}) {
   }
 
   // Handle decompress option
-  // On Cloudflare: automatically decompresses, no action needed
-  // On Fastly/Node.js: map decompress to fastly.decompressGzip
-  if (!isCloudflare) {
+  // On Cloudflare: pass through as-is (Cloudflare auto-decompresses)
+  // On Fastly/Node.js: map decompress to fastly.decompressGzip (default: true)
+  if (!isInCloudflare) {
+    const { decompress = true, fastly, ...otherOptions } = fetchOptions;
     fetchOptions = {
-      ...fetchOptions,
+      ...otherOptions,
       fastly: {
         decompressGzip: decompress,
         ...fastly, // explicit fastly options override
@@ -237,7 +238,7 @@ async function wrappedFetch(resource, options = {}) {
     };
   }
 
-  return originalFetch(resource, fetchOptions);
+  return globalThis.fetch(resource, fetchOptions);
 }
 
 // Export as default for clean import syntax
