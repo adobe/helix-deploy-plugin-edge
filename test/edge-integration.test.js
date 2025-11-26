@@ -151,8 +151,8 @@ describe('Edge Integration Test', () => {
 
         assert.ok(response.status === 200, `Response should be 200, got ${response.status}`);
         assert.ok(text.includes('ok: ho bar'), `Response should include env vars: ${text}`);
-        // Accept 200, 201, or 503 since backend status can vary
-        assert.ok(text.includes('– 200') || text.includes('– 201') || text.includes('– 503'), `Response should include backend status: ${text}`);
+        // Only accept successful responses (200, 201) - never accept 503 or other errors
+        assert.ok(text.includes('– 200') || text.includes('– 201'), `Response should include successful backend status (200 or 201): ${text}`);
       });
 
       it('should handle logging functionality', async () => {
@@ -172,8 +172,8 @@ describe('Edge Integration Test', () => {
         assert.ok(response.status === 200, `Cache override TTL should return 200, got ${response.status}`);
         assert.ok(text.includes('cache-override-ttl'), `Response should include route name: ${text}`);
         assert.ok(text.includes('ttl=3600'), `Response should include TTL parameter: ${text}`);
-        // Accept 200, 201, or 503 since backend status can vary
-        assert.ok(text.includes('– 200') || text.includes('– 201') || text.includes('– 503'), `Response should include backend status: ${text}`);
+        // Only accept successful responses (200, 201) - never accept 503 or other errors
+        assert.ok(text.includes('– 200') || text.includes('– 201'), `Response should include successful backend status (200 or 201): ${text}`);
       });
 
       it('should support pass mode cache override', async () => {
@@ -183,8 +183,8 @@ describe('Edge Integration Test', () => {
         assert.ok(response.status === 200, `Cache override pass should return 200, got ${response.status}`);
         assert.ok(text.includes('cache-override-pass'), `Response should include route name: ${text}`);
         assert.ok(text.includes('mode=pass'), `Response should include pass mode: ${text}`);
-        // Accept 200, 201, or 503 since backend status can vary
-        assert.ok(text.includes('– 200') || text.includes('– 201') || text.includes('– 503'), `Response should include backend status: ${text}`);
+        // Only accept successful responses (200, 201) - never accept 503 or other errors
+        assert.ok(text.includes('– 200') || text.includes('– 201'), `Response should include successful backend status (200 or 201): ${text}`);
       });
 
       it('should support custom cache key override', async () => {
@@ -194,8 +194,8 @@ describe('Edge Integration Test', () => {
         assert.ok(response.status === 200, `Cache override key should return 200, got ${response.status}`);
         assert.ok(text.includes('cache-override-key'), `Response should include route name: ${text}`);
         assert.ok(text.includes('cacheKey=test-key'), `Response should include cache key: ${text}`);
-        // Accept 200, 201, or 503 since backend status can vary
-        assert.ok(text.includes('– 200') || text.includes('– 201') || text.includes('– 503'), `Response should include backend status: ${text}`);
+        // Only accept successful responses (200, 201) - never accept 503 or other errors
+        assert.ok(text.includes('– 200') || text.includes('– 201'), `Response should include successful backend status (200 or 201): ${text}`);
       });
 
       it('should handle package and action parameters correctly', async () => {
