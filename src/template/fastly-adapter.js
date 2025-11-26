@@ -75,6 +75,11 @@ export async function handleRequest(event) {
       },
       env: new Proxy({}, {
         get: (target, prop) => {
+          // Return undefined for non-string properties (like Symbol.iterator)
+          if (typeof prop !== 'string') {
+            return undefined;
+          }
+
           // Try action_secrets first (action-specific params - highest priority)
           try {
             const actionSecrets = new SecretStore('action_secrets');
@@ -90,6 +95,10 @@ export async function handleRequest(event) {
                 }
                 return undefined;
               });
+            }).catch((err) => {
+              // eslint-disable-next-line no-console
+              console.error(`Error accessing secrets for ${prop}: ${err.message}`);
+              return undefined;
             });
           } catch (err) {
             // eslint-disable-next-line no-console
