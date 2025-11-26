@@ -172,7 +172,7 @@ class UnifiedCacheOverride {
 }
 
 // Store original fetch and other APIs
-const originalFetch = fetch;
+const originalFetch = globalThis.fetch;
 const {
   Request: OriginalRequest,
   Response: OriginalResponse,
@@ -224,7 +224,7 @@ async function wrappedFetch(resource, options = {}) {
   return originalFetch(resource, restOptions);
 }
 
-// Export as CommonJS for webpack bundling compatibility
+// Export as default for clean import syntax
 export default {
   fetch: wrappedFetch,
   Request: OriginalRequest,
@@ -233,11 +233,9 @@ export default {
   CacheOverride: UnifiedCacheOverride,
 };
 
-// Named exports for modern import syntax
-export {
-  wrappedFetch as fetch,
-  OriginalRequest as Request,
-  OriginalResponse as Response,
-  OriginalHeaders as Headers,
-  UnifiedCacheOverride as CacheOverride,
-};
+// Named exports for destructuring import syntax
+export const fetch = wrappedFetch;
+export const Request = OriginalRequest;
+export const Response = OriginalResponse;
+export const Headers = OriginalHeaders;
+export const CacheOverride = UnifiedCacheOverride;
