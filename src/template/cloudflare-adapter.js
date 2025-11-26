@@ -11,6 +11,7 @@
  */
 /* eslint-env serviceworker */
 import { extractPathFromURL } from './adapter-utils.js';
+import { createCloudflareLogger } from './context-logger.js';
 
 export async function handleRequest(event) {
   try {
@@ -44,7 +45,13 @@ export async function handleRequest(event) {
         get: (target, prop) => target[prop] || target.PACKAGE.get(prop),
       }),
       storage: null,
+      attributes: {},
     };
+
+    // Initialize logger after context is created
+    // Logger dynamically checks context.attributes.loggers on each call
+    context.log = createCloudflareLogger(context);
+
     return await main(request, context);
   } catch (e) {
     console.log(e.message);

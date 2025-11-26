@@ -93,4 +93,42 @@ describe('Fastly Compute@Edge Integration Test', () => {
     assert.ok(keyText.indexOf('cache-override-key') > 0, 'Should test custom cache key');
     assert.ok(keyText.indexOf('cacheKey=test-key') > 0, 'Should include cache key parameter');
   }).timeout(10000000);
+
+  it('Deploy logging example to Compute@Edge', async () => {
+    const serviceID = '1yv1Wl7NQCFmNBkW4L8htc';
+
+    await fse.copy(path.resolve(__rootdir, 'test', 'fixtures', 'logging-example'), testRoot);
+    process.chdir(testRoot);
+    const builder = await new CLI()
+      .prepare([
+        '--build',
+        '--plugin', resolve(__rootdir, 'src', 'index.js'),
+        '--verbose',
+        '--deploy',
+        '--target', 'c@e',
+        '--arch', 'edge',
+        '--compute-service-id', serviceID,
+        '--compute-test-domain', 'possibly-working-sawfish',
+        '--package.name', 'LoggingTest',
+        '--package.params', 'TEST=logging',
+        '--update-package', 'true',
+        '--fastly-gateway', 'deploy-test.anywhere.run',
+        '-p', 'FOO=bar',
+        '--fastly-service-id', '4u8SAdblhzzbXntBYCjhcK',
+        '--test', '/?operation=verbose',
+        '--directory', testRoot,
+        '--entryFile', 'index.js',
+        '--bundler', 'webpack',
+        '--esm', 'false',
+      ]);
+    builder.cfg._logger = new TestLogger();
+
+    const res = await builder.run();
+    assert.ok(res);
+    const out = builder.cfg._logger.output;
+    assert.ok(out.indexOf('possibly-working-sawfish.edgecompute.app') > 0, out);
+    assert.ok(out.indexOf('"status":"ok"') > 0, 'Response should include status ok');
+    assert.ok(out.indexOf('"logging":"enabled"') > 0, 'Response should indicate logging is enabled');
+    assert.ok(out.indexOf('dist/LoggingTest/fastly-bundle.tar.gz') > 0, out);
+  }).timeout(10000000);
 });
