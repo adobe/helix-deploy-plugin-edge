@@ -12,6 +12,7 @@
 /* eslint-env serviceworker */
 /* global CacheOverride, SecretStore */
 import { extractPathFromURL } from './adapter-utils.js';
+import { createFastlyLogger } from './context-logger.js';
 
 export function getEnvInfo(req, env) {
   const serviceVersion = env('FASTLY_SERVICE_VERSION');
@@ -95,7 +96,13 @@ export async function handleRequest(event) {
         },
       }),
       storage: null,
+      attributes: {},
     };
+
+    // Initialize logger after context is created
+    // Logger dynamically checks context.attributes.loggers on each call
+    context.log = createFastlyLogger(context);
+
     return await main(request, context);
   } catch (e) {
     console.log(e.message);
