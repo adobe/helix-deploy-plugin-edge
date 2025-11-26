@@ -49,6 +49,47 @@ export async function main(req, context) {
     return new Response(`(${context?.func?.name}) ok: cache-override-key cacheKey=test-key uuid=${data.uuid} – ${backendResponse.status}`);
   }
 
+  // Logging test route - only for requests with operation=verbose
+  if (url.searchParams.get('operation') === 'verbose') {
+    // Configure logger targets dynamically
+    const loggers = url.searchParams.get('loggers');
+    if (loggers) {
+      context.attributes.loggers = loggers.split(',');
+    }
+
+    // Example: Structured logging with different levels
+    context.log.info({
+      action: 'request_started',
+      path: url.pathname,
+      method: req.method,
+    });
+
+    context.log.verbose({
+      operation: 'data_processing',
+      records: 1000,
+      duration_ms: 123,
+    });
+
+    // Example: Plain string logging
+    context.log.info('Request processed successfully');
+
+    // Example: Silly level (most verbose)
+    context.log.silly('Extra verbose logging for development');
+
+    const response = {
+      status: 'ok',
+      logging: 'enabled',
+      loggers: context.attributes.loggers || [],
+      timestamp: new Date().toISOString(),
+    };
+
+    return new Response(JSON.stringify(response), {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  }
+
   // Original status code test
   console.log(req.url, `https://httpbin.org/status/${req.url.split('/').pop()}`);
   const backendresponse = await fetch(`https://httpbin.org/status/${req.url.split('/').pop()}`, {
