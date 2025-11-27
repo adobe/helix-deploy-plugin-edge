@@ -63,7 +63,7 @@ export function createFastlyLogger(context) {
 
   // Initialize Fastly logger module asynchronously
   // eslint-disable-next-line import/no-unresolved
-  loggerPromise = import('fastly:logger').then((module) => {
+  loggerPromise = import(/* webpackIgnore: true */ 'fastly:logger').then((module) => {
     loggerModule = module;
     loggersReady = true;
     loggerPromise = null;

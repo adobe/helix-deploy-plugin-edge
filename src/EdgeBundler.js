@@ -122,6 +122,8 @@ export default class EdgeBundler extends WebpackBundler {
         concatenateModules: false,
         mangleExports: false,
         moduleIds: 'named',
+        // Disable code splitting - Fastly runtime doesn't support importScripts
+        splitChunks: false,
       },
       plugins: [],
     };

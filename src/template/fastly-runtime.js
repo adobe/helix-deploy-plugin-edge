@@ -26,7 +26,7 @@ let loggerModule = null;
 export async function getFastlyEnv() {
   if (!envModule) {
     /* eslint-disable-next-line import/no-unresolved */
-    envModule = await import('fastly:env');
+    envModule = await import(/* webpackIgnore: true */ 'fastly:env');
   }
   return envModule;
 }
@@ -41,7 +41,7 @@ export async function getSecretStore() {
   }
   try {
     /* eslint-disable-next-line import/no-unresolved */
-    secretStoreModule = await import('fastly:secret-store');
+    secretStoreModule = await import(/* webpackIgnore: true */ 'fastly:secret-store');
     return secretStoreModule.SecretStore;
   } catch {
     return null;
@@ -58,7 +58,7 @@ export async function getLogger() {
   }
   try {
     /* eslint-disable-next-line import/no-unresolved */
-    loggerModule = await import('fastly:logger');
+    loggerModule = await import(/* webpackIgnore: true */ 'fastly:logger');
     return loggerModule.Logger;
   } catch {
     return null;

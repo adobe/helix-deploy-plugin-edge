@@ -11,6 +11,10 @@
  */
 /* eslint-env serviceworker */
 
+// Static imports to avoid code splitting (Fastly runtime doesn't support importScripts)
+import { handleRequest as handleCloudflareRequest } from './cloudflare-adapter.js';
+import { handleRequest as handleFastlyRequest } from './fastly-adapter.js';
+
 // Platform detection based on request properties and runtime-specific modules
 let detectedPlatform = null;
 
@@ -29,7 +33,7 @@ async function detectPlatform(request) {
   // Try Fastly by checking for fastly:env module
   try {
     /* eslint-disable-next-line import/no-unresolved */
-    await import('fastly:env');
+    await import(/* webpackIgnore: true */ 'fastly:env');
     detectedPlatform = 'fastly';
     // eslint-disable-next-line no-console
     console.log('detected fastly environment');
@@ -45,13 +49,11 @@ async function getHandler(request) {
   const platform = await detectPlatform(request);
 
   if (platform === 'cloudflare') {
-    const { handleRequest } = await import('./cloudflare-adapter.js');
-    return handleRequest;
+    return handleCloudflareRequest;
   }
 
   if (platform === 'fastly') {
-    const { handleRequest } = await import('./fastly-adapter.js');
-    return handleRequest;
+    return handleFastlyRequest;
   }
 
   return null;
