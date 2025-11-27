@@ -62,20 +62,3 @@ export async function handleRequest(event) {
     return new Response(`Error: ${e.message}`, { status: 500 });
   }
 }
-
-/**
- * Detects if the code is running in a cloudflare environment.
- * @returns {null|(function(*): Promise<*|Response|undefined>)|*}
- */
-export default function cloudflare() {
-  try {
-    if (caches.default) {
-      // eslint-disable-next-line no-console
-      console.log('detected cloudflare environment');
-      return handleRequest;
-    }
-  } catch {
-    // ignore
-  }
-  return null;
-}
