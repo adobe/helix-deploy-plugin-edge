@@ -9,15 +9,7 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-import { Response, fetch } from '@adobe/fetch';
-
-// CacheOverride is only available in Fastly Compute@Edge environment
-// Create a mock for testing environment
-const CacheOverride = globalThis.CacheOverride || class MockCacheOverride {
-  constructor(...args) {
-    this.args = args;
-  }
-};
+import { Response, fetch, CacheOverride } from '@adobe/fetch';
 
 export async function main(req, context) {
   const url = new URL(req.url);
@@ -27,7 +19,7 @@ export async function main(req, context) {
   if (path.includes('/cache-override-ttl')) {
     // Test: TTL override
     const cacheOverride = new CacheOverride('override', { ttl: 3600 });
-    const backendResponse = await fetch('https://jsonplaceholder.typicode.com/posts/1', {
+    const backendResponse = await fetch('https://www.aem.live/', {
       cacheOverride,
     });
     const contentLength = backendResponse.headers.get('content-length') || 'unknown';
@@ -37,7 +29,7 @@ export async function main(req, context) {
   if (path.includes('/cache-override-pass')) {
     // Test: Pass mode (no caching)
     const cacheOverride = new CacheOverride('pass');
-    const backendResponse = await fetch('https://jsonplaceholder.typicode.com/posts/1', {
+    const backendResponse = await fetch('https://www.aem.live/', {
       cacheOverride,
     });
     const contentLength = backendResponse.headers.get('content-length') || 'unknown';
@@ -47,7 +39,7 @@ export async function main(req, context) {
   if (path.includes('/cache-override-key')) {
     // Test: Custom cache key
     const cacheOverride = new CacheOverride({ ttl: 300, cacheKey: 'test-key' });
-    const backendResponse = await fetch('https://jsonplaceholder.typicode.com/posts/1', {
+    const backendResponse = await fetch('https://www.aem.live/', {
       cacheOverride,
     });
     const contentLength = backendResponse.headers.get('content-length') || 'unknown';
@@ -97,8 +89,8 @@ export async function main(req, context) {
 
   // Original status code test - use reliable endpoint (v2)
   // eslint-disable-next-line no-console
-  console.log(req.url, 'https://jsonplaceholder.typicode.com/posts/1 (updated)');
-  const backendresponse = await fetch('https://jsonplaceholder.typicode.com/posts/1');
+  console.log(req.url, 'https://www.aem.live/ (updated)');
+  const backendresponse = await fetch('https://www.aem.live/');
   const contentLength = backendresponse.headers.get('content-length') || 'unknown';
   // eslint-disable-next-line no-console
   console.log(`Response: ${backendresponse.status}, Content-Length: ${contentLength}`);
