@@ -41,21 +41,29 @@ export default class EdgeBundler extends WebpackBundler {
       },
       devtool: false,
       externals: [
-        ...cfg.externals, // user defined externals for all platforms
-        ...cfg.edgeExternals, // user defined externals for edge compute
-        // the following are imported by the universal adapter and are assumed to be available
-        './params.json',
-        'aws-sdk',
-        '@google-cloud/secret-manager',
-        '@google-cloud/storage',
-        'fastly:env',
-        'fastly:logger',
-      ].reduce((obj, ext) => {
-        // this makes webpack to ignore the module and just leave it as normal require.
-        // eslint-disable-next-line no-param-reassign
-        obj[ext] = `commonjs2 ${ext}`;
-        return obj;
-      }, {}),
+        // Function to externalize all fastly:* modules
+        ({ request }, callback) => {
+          if (request && request.startsWith('fastly:')) {
+            return callback(null, `commonjs2 ${request}`);
+          }
+          return callback();
+        },
+        // Static externals object
+        [
+          ...cfg.externals, // user defined externals for all platforms
+          ...cfg.edgeExternals, // user defined externals for edge compute
+          // the following are imported by the universal adapter and are assumed to be available
+          './params.json',
+          'aws-sdk',
+          '@google-cloud/secret-manager',
+          '@google-cloud/storage',
+        ].reduce((obj, ext) => {
+          // this makes webpack to ignore the module and just leave it as normal require.
+          // eslint-disable-next-line no-param-reassign
+          obj[ext] = `commonjs2 ${ext}`;
+          return obj;
+        }, {}),
+      ],
       module: {
         rules: [{
           test: /\.js$/,
