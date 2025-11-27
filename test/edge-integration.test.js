@@ -147,7 +147,7 @@ describe('Edge Integration Test', () => {
 
   // Test suite that runs against both platforms
   ['cloudflare', 'fastly'].forEach((platform) => {
-    describe(`${platform.charAt(0).toUpperCase() + platform.slice(1)} Platform`, () => {
+    describe(`${platform.charAt(0).toUpperCase() + platform.slice(1)} Platform Integration`, () => {
       let baseUrl;
 
       before(() => {
