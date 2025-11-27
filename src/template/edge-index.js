@@ -11,13 +11,62 @@
  */
 /* eslint-env serviceworker */
 
-import fastly from './fastly-adapter.js';
-import cloudflare from './cloudflare-adapter.js';
+// Static imports to avoid code splitting (Fastly runtime doesn't support importScripts)
+import { handleRequest as handleCloudflareRequest } from './cloudflare-adapter.js';
+import { handleRequest as handleFastlyRequest } from './fastly-adapter.js';
+
+// Platform detection based on request properties and runtime-specific modules
+let detectedPlatform = null;
+
+async function detectPlatform(request) {
+  if (detectedPlatform) return detectedPlatform;
+
+  // Check for Cloudflare by testing for request.cf property
+  // https://developers.cloudflare.com/workers/runtime-apis/request/#incomingrequestcfproperties
+  if (request && request.cf) {
+    detectedPlatform = 'cloudflare';
+    // eslint-disable-next-line no-console
+    console.log('detected cloudflare environment');
+    return detectedPlatform;
+  }
+
+  // Try Fastly by checking for fastly:env module
+  try {
+    /* eslint-disable-next-line import/no-unresolved */
+    await import(/* webpackIgnore: true */ 'fastly:env');
+    detectedPlatform = 'fastly';
+    // eslint-disable-next-line no-console
+    console.log('detected fastly environment');
+    return detectedPlatform;
+  } catch {
+    // Not Fastly
+  }
+
+  return null;
+}
+
+async function getHandler(request) {
+  const platform = await detectPlatform(request);
+
+  if (platform === 'cloudflare') {
+    return handleCloudflareRequest;
+  }
+
+  if (platform === 'fastly') {
+    return handleFastlyRequest;
+  }
+
+  return null;
+}
 
 // eslint-disable-next-line no-restricted-globals
 addEventListener('fetch', (event) => {
-  const handler = cloudflare() || fastly();
-  if (typeof handler === 'function') {
-    event.respondWith(handler(event));
-  }
+  event.respondWith(
+    getHandler(event.request).then((handler) => {
+      if (typeof handler === 'function') {
+        return handler(event);
+      }
+      return new Response('Unknown platform', { status: 500 });
+    }),
+  );
 });

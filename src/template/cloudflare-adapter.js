@@ -28,7 +28,10 @@ export async function handleRequest(event) {
         region: request.cf.colo,
       },
       func: {
-        name: null,
+        // Extract worker name from request URL hostname
+        name: request.url
+          ? new URL(request.url).hostname.split('.')[0]
+          : 'cloudflare-worker',
         package: null,
         version: null,
         fqn: null,
@@ -54,23 +57,8 @@ export async function handleRequest(event) {
 
     return await main(request, context);
   } catch (e) {
+    // eslint-disable-next-line no-console
     console.log(e.message);
     return new Response(`Error: ${e.message}`, { status: 500 });
   }
-}
-
-/**
- * Detects if the code is running in a cloudflare environment.
- * @returns {null|(function(*): Promise<*|Response|undefined>)|*}
- */
-export default function cloudflare() {
-  try {
-    if (caches.default) {
-      console.log('detected cloudflare environment');
-      return handleRequest;
-    }
-  } catch {
-    // ignore
-  }
-  return null;
 }
