@@ -25,9 +25,13 @@ jobs:
       - run: npm install @adobe/helix-deploy
       - run: npm run lint
 
-      # Run all tests with combined coverage reporting
-      - name: Run all tests with coverage
-        run: npm run test-all
+      # Run unit tests with coverage
+      - name: Run unit tests
+        run: npm test
+
+      # Run integration tests with coverage
+      - name: Run integration tests
+        run: npm run integration-ci
         env:
           HLX_FASTLY_AUTH: ${{ secrets.HLX_FASTLY_AUTH }}
           CLOUDFLARE_AUTH: ${{ secrets.CLOUDFLARE_AUTH }}

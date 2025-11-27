@@ -6,7 +6,6 @@
   "type": "module",
   "scripts": {
     "test": "c8 --exclude 'test/fixtures/**' mocha -i -g Integration",
-    "test-all": "c8 --exclude 'test/fixtures/**' mocha",
     "integration-ci": "c8 --exclude 'test/fixtures/**' mocha -g Integration",
     "lint": "eslint .",
     "semantic-release": "semantic-release",
