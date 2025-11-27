@@ -10,9 +10,9 @@
  * governing permissions and limitations under the License.
  */
 /* eslint-env serviceworker */
-/* global CacheOverride, SecretStore */
 import { extractPathFromURL } from './adapter-utils.js';
 import { createFastlyLogger } from './context-logger.js';
+import { getFastlyEnv, getSecretStore } from './fastly-runtime.js';
 
 export function getEnvInfo(req, env) {
   const serviceVersion = env('FASTLY_SERVICE_VERSION');
@@ -36,9 +36,7 @@ export function getEnvInfo(req, env) {
 }
 
 async function getEnvironmentInfo(req) {
-  // The fastly:env import will be available in the fastly c@e environment
-  /* eslint-disable-next-line import/no-unresolved */
-  const mod = await import('fastly:env');
+  const mod = await getFastlyEnv();
   return getEnvInfo(req, mod.env);
 }
 
@@ -80,8 +78,12 @@ export async function handleRequest(event) {
             return undefined;
           }
 
-          // Try action_secrets first (action-specific params - highest priority)
-          try {
+          // Load SecretStore dynamically and access secrets
+          return getSecretStore().then((SecretStore) => {
+            if (!SecretStore) {
+              return undefined;
+            }
+            // Try action_secrets first (action-specific params - highest priority)
             const actionSecrets = new SecretStore('action_secrets');
             return actionSecrets.get(prop).then((secret) => {
               if (secret) {
@@ -95,16 +97,12 @@ export async function handleRequest(event) {
                 }
                 return undefined;
               });
-            }).catch((err) => {
-              // eslint-disable-next-line no-console
-              console.error(`Error accessing secrets for ${prop}: ${err.message}`);
-              return undefined;
             });
-          } catch (err) {
+          }).catch((err) => {
             // eslint-disable-next-line no-console
-            console.error(`Error accessing secrets: ${err.message}`);
+            console.error(`Error accessing secrets for ${prop}: ${err.message}`);
             return undefined;
-          }
+          });
         },
       }),
       storage: null,
@@ -121,22 +119,4 @@ export async function handleRequest(event) {
     console.log(e.message);
     return new Response(`Error: ${e.message}`, { status: 500 });
   }
-}
-
-/**
- * Returns the fastly request handler on fastly environments.
- * @returns {null|(function(*): Promise<*|Response|undefined>)|*}
- */
-export default function fastly() {
-  try {
-    // todo: find better way to detect fastly environment, eg: import 'fastly:env'
-    if (CacheOverride) {
-      // eslint-disable-next-line no-console
-      console.log('detected fastly environment');
-      return handleRequest;
-    }
-  } catch {
-    // ignore
-  }
-  return null;
 }
