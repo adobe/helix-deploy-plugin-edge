@@ -71,7 +71,6 @@ describe('Edge Integration Test', () => {
         // Fastly config
         '--compute-service-id', fastlyServiceID,
         '--compute-test-domain', fastlyTestDomain,
-        '--package.name', 'Test',
         '--fastly-gateway', 'deploy-test.anywhere.run',
         '--fastly-service-id', '4u8SAdblhzzbXntBYCjhcK',
         // Shared config

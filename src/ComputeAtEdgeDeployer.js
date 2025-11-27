@@ -123,10 +123,28 @@ service_id = ""
       this.log.debug('--: uploading package to fastly, service version', version);
       await this._fastly.writePackage(version, buf);
 
+      // Helper to get or create secret store with duplicate handling
+      const getOrCreateSecretStore = async (name) => {
+        try {
+          return await this._fastly.writeSecretStore(name);
+        } catch (error) {
+          if (error.message && error.message.includes('duplicate')) {
+            // Store was created between list and create, retry to get it
+            this.log.debug(`--: secret store ${name} already exists, fetching...`);
+            const stores = await this._fastly.readSecretStores();
+            const existing = stores.data?.data?.find((s) => s.name === name);
+            if (existing) {
+              return { data: existing };
+            }
+          }
+          throw error;
+        }
+      };
+
       // Get or create action secret store (for action-specific params)
       const actionStoreName = this.fullFunctionName;
       this.log.debug(`--: getting or creating action secret store: ${actionStoreName}`);
-      const actionStore = await this._fastly.writeSecretStore(actionStoreName);
+      const actionStore = await getOrCreateSecretStore(actionStoreName);
       const actionStoreId = actionStore.data.id;
       try {
         await this._fastly.writeResource(version, actionStoreId, 'action_secrets');
@@ -141,7 +159,7 @@ service_id = ""
       // Get or create package secret store (for package-wide params)
       const packageStoreName = this.cfg.packageName;
       this.log.debug(`--: getting or creating package secret store: ${packageStoreName}`);
-      const packageStore = await this._fastly.writeSecretStore(packageStoreName);
+      const packageStore = await getOrCreateSecretStore(packageStoreName);
       const packageStoreId = packageStore.data.id;
       try {
         await this._fastly.writeResource(version, packageStoreId, 'package_secrets');
