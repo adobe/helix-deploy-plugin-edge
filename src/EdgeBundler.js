@@ -38,6 +38,7 @@ export default class EdgeBundler extends WebpackBundler {
         library: 'main',
         libraryTarget: 'umd',
         globalObject: 'globalThis',
+        publicPath: '', // Required for Fastly WASM runtime which lacks document.currentScript
       },
       devtool: false,
       externals: [
