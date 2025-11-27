@@ -16,7 +16,7 @@ import assert from 'assert';
 import { config } from 'dotenv';
 import { CLI } from '@adobe/helix-deploy';
 import fse from 'fs-extra';
-import path, { resolve } from 'path';
+import path from 'path';
 import { createTestRoot, TestLogger } from './utils.js';
 
 // Only load .env if environment variables aren't already set (e.g., in CI)
@@ -29,82 +29,8 @@ describe('Edge Integration Test', () => {
   let origPwd;
   const deployments = {};
 
-  async function deployToCloudflare() {
-    // Use static names to update existing worker instead of creating new ones
-
-    const builder = await new CLI()
-      .prepare([
-        '--build',
-        '--verbose',
-        '--deploy',
-        '--target', 'cloudflare',
-        '--plugin', path.resolve(__rootdir, 'src', 'index.js'),
-        '--arch', 'edge',
-        '--cloudflare-email', 'lars@trieloff.net',
-        '--cloudflare-account-id', '155ec15a52a18a14801e04b019da5e5a',
-        '--cloudflare-test-domain', 'minivelos',
-        '--cloudflare-auth', process.env.CLOUDFLARE_AUTH,
-        '--package.params', 'HEY=ho',
-        '--package.params', 'ZIP=zap',
-        '--update-package', 'true',
-        '-p', 'FOO=bar',
-        '--directory', testRoot,
-        '--entryFile', 'src/index.js',
-        '--bundler', 'webpack',
-        '--esm', 'false',
-      ]);
-    builder.cfg._logger = new TestLogger();
-
-    const res = await builder.run();
-    assert.ok(res, 'Cloudflare deployment should succeed');
-
-    return {
-      url: 'https://simple-package--simple-project.minivelos.workers.dev',
-      logger: builder.cfg._logger,
-    };
-  }
-
-  async function deployToFastly() {
-    const serviceID = '1yv1Wl7NQCFmNBkW4L8htc';
-    const testDomain = 'possibly-working-sawfish';
-    // Use the same package name as the existing working test
-    const packageName = 'Test';
-
-    const builder = await new CLI()
-      .prepare([
-        '--build',
-        '--plugin', resolve(__rootdir, 'src', 'index.js'),
-        '--verbose',
-        '--deploy',
-        '--target', 'c@e',
-        '--arch', 'edge',
-        '--compute-service-id', serviceID,
-        '--compute-test-domain', testDomain,
-        '--package.name', packageName,
-        '--package.params', 'HEY=ho',
-        '--package.params', 'ZIP=zap',
-        '--update-package', 'true',
-        '--fastly-gateway', 'deploy-test.anywhere.run',
-        '-p', 'FOO=bar',
-        '--fastly-service-id', '4u8SAdblhzzbXntBYCjhcK',
-        '--directory', testRoot,
-        '--entryFile', 'src/index.js',
-        '--bundler', 'webpack',
-        '--esm', 'false',
-      ]);
-    builder.cfg._logger = new TestLogger();
-
-    const res = await builder.run();
-    assert.ok(res, 'Fastly deployment should succeed');
-
-    return {
-      url: `https://${testDomain}.edgecompute.app`,
-      logger: builder.cfg._logger,
-    };
-  }
-
   before(async function deployToBothPlatforms() {
-    this.timeout(600000); // 10 minutes for parallel deployment
+    this.timeout(600000); // 10 minutes for deployment
 
     // Fail explicitly if required credentials are missing
     if (!process.env.HLX_FASTLY_AUTH) {
@@ -121,20 +47,59 @@ describe('Edge Integration Test', () => {
     await fse.copy(path.resolve(__rootdir, 'test', 'fixtures', 'edge-action'), testRoot);
     process.chdir(testRoot);
 
-    // eslint-disable-next-line no-console
-    console.log('--: Starting parallel deployment to Cloudflare and Fastly...');
-
-    // Deploy to both platforms in parallel
-    const [cloudflareResult, fastlyResult] = await Promise.all([
-      deployToCloudflare(),
-      deployToFastly(),
-    ]);
-
-    deployments.cloudflare = cloudflareResult;
-    deployments.fastly = fastlyResult;
+    const fastlyServiceID = '1yv1Wl7NQCFmNBkW4L8htc';
+    const fastlyTestDomain = 'possibly-working-sawfish';
 
     // eslint-disable-next-line no-console
-    console.log('--: Parallel deployment completed');
+    console.log('--: Starting deployment to Cloudflare and Fastly...');
+
+    // Deploy to both platforms with a single CLI call using multiple --target arguments
+    const builder = await new CLI()
+      .prepare([
+        '--build',
+        '--verbose',
+        '--deploy',
+        '--target', 'cloudflare',
+        '--target', 'c@e',
+        '--plugin', path.resolve(__rootdir, 'src', 'index.js'),
+        '--arch', 'edge',
+        // Cloudflare config
+        '--cloudflare-email', 'lars@trieloff.net',
+        '--cloudflare-account-id', '155ec15a52a18a14801e04b019da5e5a',
+        '--cloudflare-test-domain', 'minivelos',
+        '--cloudflare-auth', process.env.CLOUDFLARE_AUTH,
+        // Fastly config
+        '--compute-service-id', fastlyServiceID,
+        '--compute-test-domain', fastlyTestDomain,
+        '--package.name', 'Test',
+        '--fastly-gateway', 'deploy-test.anywhere.run',
+        '--fastly-service-id', '4u8SAdblhzzbXntBYCjhcK',
+        // Shared config
+        '--package.params', 'HEY=ho',
+        '--package.params', 'ZIP=zap',
+        '--update-package', 'true',
+        '-p', 'FOO=bar',
+        '--directory', testRoot,
+        '--entryFile', 'src/index.js',
+        '--bundler', 'webpack',
+        '--esm', 'false',
+      ]);
+    builder.cfg._logger = new TestLogger();
+
+    const res = await builder.run();
+    assert.ok(res, 'Deployment should succeed');
+
+    deployments.cloudflare = {
+      url: 'https://simple-package--simple-project.minivelos.workers.dev',
+      logger: builder.cfg._logger,
+    };
+    deployments.fastly = {
+      url: `https://${fastlyTestDomain}.edgecompute.app`,
+      logger: builder.cfg._logger,
+    };
+
+    // eslint-disable-next-line no-console
+    console.log('--: Deployment completed');
     // eslint-disable-next-line no-console
     console.log(`--: Cloudflare URL: ${deployments.cloudflare.url}`);
     // eslint-disable-next-line no-console
