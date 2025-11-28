@@ -71,9 +71,4 @@ describe.skip('Unit Tests for Fastly Gateway', () => {
       op: 'upsert',
     });
   });
-
-  it('Generates correct package parameter JSON', () => {
-    const vcl = gateway.listPackageParamsVCL();
-    console.log(vcl);
-  });
 });

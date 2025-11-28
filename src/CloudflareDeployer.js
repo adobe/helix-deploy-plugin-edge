@@ -38,13 +38,14 @@ export default class CloudflareDeployer extends BaseDeployer {
   get fullFunctionName() {
     return `${this.cfg.packageName}--${this.cfg.name}`
       .replace(/\./g, '_')
-      .replace('@', '_');
+      .replace('@', '_')
+      .toLowerCase();
   }
 
   async deploy() {
     const body = fs.readFileSync(this.cfg.edgeBundle);
     const settings = await this.getSettings();
-    const { id } = await this.createKVNamespace(`${this.cfg.packageName}--secrets`);
+    const { id } = await this.createKVNamespace(`${this.cfg.packageName}--secrets`.toLowerCase());
 
     const metadata = {
       body_part: 'script',

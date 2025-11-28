@@ -123,34 +123,65 @@ service_id = ""
       this.log.debug('--: uploading package to fastly, service version', version);
       await this._fastly.writePackage(version, buf);
 
-      this.log.debug('--: creating secrets dictionary');
-      await this._fastly.writeDictionary(version, 'secrets', {
-        name: 'secrets',
-        write_only: 'true',
-      });
-
-      const host = this._cfg.fastlyGateway;
-      const backend = {
-        hostname: host,
-        ssl_cert_hostname: host,
-        ssl_sni_hostname: host,
-        address: host,
-        override_host: host,
-        name: 'gateway',
-        error_threshold: 0,
-        first_byte_timeout: 60000,
-        weight: 100,
-        connect_timeout: 5000,
-        port: 443,
-        between_bytes_timeout: 10000,
-        shield: '', // 'bwi-va-us',
-        max_conn: 200,
-        use_ssl: true,
+      // Helper to get or create secret store with duplicate handling
+      const getOrCreateSecretStore = async (name) => {
+        try {
+          return await this._fastly.writeSecretStore(name);
+        } catch (error) {
+          if (error.message && error.message.includes('duplicate')) {
+            // Store was created between list and create, retry to get it
+            this.log.debug(`--: secret store ${name} already exists, fetching...`);
+            const stores = await this._fastly.readSecretStores();
+            const existing = stores.data?.data?.find((s) => s.name === name);
+            if (existing) {
+              return { data: existing };
+            }
+          }
+          throw error;
+        }
       };
-      if (host) {
-        this.log.debug(`--: updating gateway backend: ${host}`);
-        await this._fastly.writeBackend(version, 'gateway', backend);
+
+      // Get or create action secret store (for action-specific params)
+      const actionStoreName = this.fullFunctionName;
+      this.log.debug(`--: getting or creating action secret store: ${actionStoreName}`);
+      const actionStore = await getOrCreateSecretStore(actionStoreName);
+      const actionStoreId = actionStore.data.id;
+      try {
+        await this._fastly.writeResource(version, actionStoreId, 'action_secrets');
+      } catch (error) {
+        if (error.message && error.message.includes('Duplicate link')) {
+          this.log.debug('--: action_secrets resource link already exists, skipping');
+        } else {
+          throw error;
+        }
       }
+
+      // Get or create package secret store (for package-wide params)
+      const packageStoreName = this.cfg.packageName;
+      this.log.debug(`--: getting or creating package secret store: ${packageStoreName}`);
+      const packageStore = await getOrCreateSecretStore(packageStoreName);
+      const packageStoreId = packageStore.data.id;
+      try {
+        await this._fastly.writeResource(version, packageStoreId, 'package_secrets');
+      } catch (error) {
+        if (error.message && error.message.includes('Duplicate link')) {
+          this.log.debug('--: package_secrets resource link already exists, skipping');
+        } else {
+          throw error;
+        }
+      }
+
+      // Populate action secret store with action params
+      this.log.debug('--: populating action secret store with action params');
+      const actionSecretPromises = Object.entries(this.cfg.params)
+        .map(([key, value]) => this._fastly.putSecret(actionStoreId, key, value));
+      await Promise.all(actionSecretPromises);
+
+      // Populate package secret store with package params
+      this.log.debug('--: populating package secret store with package params');
+      const packageSecretPromises = Object.entries(this.cfg.packageParams)
+        .map(([key, value]) => this._fastly.putSecret(packageStoreId, key, value));
+      await Promise.all(packageSecretPromises);
     }, true);
 
     this.log.debug('--: waiting for 90 seconds for Fastly to process the deployment...');
@@ -163,21 +194,30 @@ service_id = ""
   }
 
   async updatePackage() {
-    this.log.info(`--: updating app (gateway) config for https://${this._cfg.fastlyGateway}/${this.cfg.packageName}/...`);
+    this.log.info(`--: updating package parameters for ${this.cfg.packageName}...`);
 
     this.init();
 
-    const functionparams = Object
-      .entries(this.cfg.params)
-      .map(([key, value]) => ({
-        item_key: key,
-        item_value: value,
-        op: 'update',
-      }));
+    // Get store IDs - stores should already exist from deployment
+    const actionStoreName = this.fullFunctionName;
+    const packageStoreName = this.cfg.packageName;
+    this.log.debug(`--: looking up store IDs for ${actionStoreName} and ${packageStoreName}`);
+    const actionStore = await this._fastly.writeSecretStore(actionStoreName);
+    const actionStoreId = actionStore.data.id;
+    const packageStore = await this._fastly.writeSecretStore(packageStoreName);
+    const packageStoreId = packageStore.data.id;
 
-    await this._fastly.bulkUpdateDictItems(undefined, 'secrets', ...functionparams);
-    await this._fastly.updateDictItem(undefined, 'secrets', '_token', this.cfg.packageToken);
-    await this._fastly.updateDictItem(undefined, 'secrets', '_package', `https://${this._cfg.fastlyGateway}/${this.cfg.packageName}/`);
+    // Update action secret store with action params
+    this.log.debug('--: updating action secret store with action params');
+    const actionSecretPromises = Object.entries(this.cfg.params)
+      .map(([key, value]) => this._fastly.putSecret(actionStoreId, key, value));
+    await Promise.all(actionSecretPromises);
+
+    // Update package secret store with package params
+    this.log.debug('--: updating package secret store with package params');
+    const packageSecretPromises = Object.entries(this.cfg.packageParams)
+      .map(([key, value]) => this._fastly.putSecret(packageStoreId, key, value));
+    await Promise.all(packageSecretPromises);
 
     await this._fastly.discard();
   }

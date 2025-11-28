@@ -10,9 +10,9 @@
  * governing permissions and limitations under the License.
  */
 /* eslint-env serviceworker */
-/* global Dictionary, CacheOverride */
 import { extractPathFromURL } from './adapter-utils.js';
 import { createFastlyLogger } from './context-logger.js';
+import { getFastlyEnv, getSecretStore } from './fastly-runtime.js';
 
 export function getEnvInfo(req, env) {
   const serviceVersion = env('FASTLY_SERVICE_VERSION');
@@ -22,6 +22,7 @@ export function getEnvInfo(req, env) {
   const functionFQN = `${env('FASTLY_CUSTOMER_ID')}-${functionName}-${serviceVersion}`;
   const txId = req.headers.get('x-transaction-id') ?? env('FASTLY_TRACE_ID');
 
+  // eslint-disable-next-line no-console
   console.debug('Env info sv: ', serviceVersion, ' reqId: ', requestId, ' region: ', region, ' functionName: ', functionName, ' functionFQN: ', functionFQN, ' txId: ', txId);
 
   return {
@@ -35,9 +36,7 @@ export function getEnvInfo(req, env) {
 }
 
 async function getEnvironmentInfo(req) {
-  // The fastly:env import will be available in the fastly c@e environment
-  /* eslint-disable-next-line import/no-unresolved */
-  const mod = await import('fastly:env');
+  const mod = await getFastlyEnv();
   return getEnvInfo(req, mod.env);
 }
 
@@ -46,8 +45,8 @@ export async function handleRequest(event) {
     const { request } = event;
     const env = await getEnvironmentInfo(request);
 
+    // eslint-disable-next-line no-console
     console.log('Fastly Adapter is here');
-    let packageParams;
     // eslint-disable-next-line import/no-unresolved,global-require
     const { main } = require('./main.js');
     const context = {
@@ -72,40 +71,38 @@ export async function handleRequest(event) {
         transactionId: env.txId,
         requestId: env.requestId,
       },
-      env: new Proxy(new Dictionary('secrets'), {
+      env: new Proxy({}, {
         get: (target, prop) => {
-          try {
-            return target.get(prop);
-          } catch {
-            if (packageParams) {
-              console.log('Using cached params');
-              return packageParams[prop];
-            }
-            const url = target.get('_package');
-            const token = target.get('_token');
-            // console.log(`Getting secrets from ${url} with ${token}`);
-            return fetch(url, {
-              backend: 'gateway',
-              headers: {
-                authorization: `Bearer ${token}`,
-              },
-            }).then((response) => {
-              if (response.ok) {
-                // console.log('response is ok...');
-                return response.text().then((json) => {
-                  // console.log('json received: ' + json);
-                  packageParams = JSON.parse(json);
-                  return packageParams[prop];
-                }).catch((error) => {
-                  console.error(`Unable to parse JSON: ${error.message}`);
-                });
-              }
-              console.error(`HTTP status is not ok: ${response.status}`);
-              return undefined;
-            }).catch((err) => {
-              console.error(`Unable to fetch parames: ${err.message}`);
-            });
+          // Return undefined for non-string properties (like Symbol.iterator)
+          if (typeof prop !== 'string') {
+            return undefined;
           }
+
+          // Load SecretStore dynamically and access secrets
+          return getSecretStore().then((SecretStore) => {
+            if (!SecretStore) {
+              return undefined;
+            }
+            // Try action_secrets first (action-specific params - highest priority)
+            const actionSecrets = new SecretStore('action_secrets');
+            return actionSecrets.get(prop).then((secret) => {
+              if (secret) {
+                return secret.plaintext();
+              }
+              // Try package_secrets next (package-wide params)
+              const packageSecrets = new SecretStore('package_secrets');
+              return packageSecrets.get(prop).then((pkgSecret) => {
+                if (pkgSecret) {
+                  return pkgSecret.plaintext();
+                }
+                return undefined;
+              });
+            });
+          }).catch((err) => {
+            // eslint-disable-next-line no-console
+            console.error(`Error accessing secrets for ${prop}: ${err.message}`);
+            return undefined;
+          });
         },
       }),
       storage: null,
@@ -118,24 +115,8 @@ export async function handleRequest(event) {
 
     return await main(request, context);
   } catch (e) {
+    // eslint-disable-next-line no-console
     console.log(e.message);
     return new Response(`Error: ${e.message}`, { status: 500 });
   }
-}
-
-/**
- * Returns the fastly request handler on fastly environments.
- * @returns {null|(function(*): Promise<*|Response|undefined>)|*}
- */
-export default function fastly() {
-  try {
-    // todo: find better way to detect fastly environment, eg: import 'fastly:env'
-    if (CacheOverride) {
-      console.log('detected fastly environment');
-      return handleRequest;
-    }
-  } catch {
-    // ignore
-  }
-  return null;
 }

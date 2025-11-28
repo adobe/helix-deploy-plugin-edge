@@ -1,0 +1,11 @@
+{
+  "name": "esbuild-test-project",
+  "version": "1.0.0",
+  "description": "Test project for ESBuild bundler",
+  "main": "src/index.js",
+  "type": "module",
+  "wsk": {
+    "name": "esbuild-test",
+    "namespace": "test"
+  }
+}

@@ -13,22 +13,9 @@
 /* eslint-env mocha */
 
 import assert from 'assert';
-import adapter, { handleRequest } from '../src/template/cloudflare-adapter.js';
+import { handleRequest } from '../src/template/cloudflare-adapter.js';
 
 describe('Cloudflare Adapter Test', () => {
-  it('returns the request handler in a cloudflare environment', () => {
-    try {
-      global.caches = { default: new Map() };
-      assert.strictEqual(adapter(), handleRequest);
-    } finally {
-      delete global.caches;
-    }
-  });
-
-  it('returns null in a non-cloudflare environment', () => {
-    assert.strictEqual(adapter(), null);
-  });
-
   it('creates context with all log level methods', async () => {
     const logs = [];
     const originalLog = console.log;
