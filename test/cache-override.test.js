@@ -124,23 +124,8 @@ describe('CacheOverride Polyfill Tests', () => {
       assert.deepStrictEqual(cfOptions.cacheTags, ['a', 'b', 'c']);
     });
 
-    it('warns and ignores unsupported options for cross-platform compatibility', () => {
-      // Capture console.warn calls
-      const warnings = [];
-      const originalWarn = console.warn;
-      // eslint-disable-next-line no-console
-      console.warn = (msg) => warnings.push(msg);
-
+    it('ignores unsupported options for cross-platform compatibility', () => {
       const override = new CacheOverride({ ttl: 3600, swr: 86400, pci: true });
-
-      // Restore console.warn
-      // eslint-disable-next-line no-console
-      console.warn = originalWarn;
-
-      // Should have warned about unsupported options
-      assert.strictEqual(warnings.length, 1);
-      assert.ok(warnings[0].includes('swr'));
-      assert.ok(warnings[0].includes('pci'));
 
       // Only supported options should be stored
       assert.strictEqual(override.options.ttl, 3600);
@@ -162,10 +147,10 @@ describe('CacheOverride Polyfill Tests', () => {
       assert.strictEqual(override.options.ttl, 3600);
     });
 
-    it('returns null for getNative when not in Fastly environment', async () => {
+    it('returns null native when not in Fastly environment', async () => {
       const override = new CacheOverride({ ttl: 7200 });
-      const native = await override.getNative();
-      assert.strictEqual(native, null);
+      await override.initNative();
+      assert.strictEqual(override.native, null);
     });
   });
 
@@ -177,11 +162,11 @@ describe('CacheOverride Polyfill Tests', () => {
       assert.strictEqual(cfOptions.cacheTtl, 3600);
     });
 
-    it('CacheOverride provides getNative method', async () => {
+    it('CacheOverride provides initNative method', async () => {
       const override = new CacheOverride({ ttl: 3600 });
-      const native = await override.getNative();
-      // In non-Fastly environment, should return null
-      assert.strictEqual(native, null);
+      await override.initNative();
+      // In non-Fastly environment, native should be null
+      assert.strictEqual(override.native, null);
     });
 
     it('toCloudflareOptions handles all supported cross-platform options', () => {

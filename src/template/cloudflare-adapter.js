@@ -45,7 +45,7 @@ export async function handleRequest(event) {
       },
       // eslint-disable-next-line no-undef
       env: new Proxy(globalThis, {
-        get: (target, prop) => target[prop] || target.PACKAGE.get(prop),
+        get: (target, prop) => target[prop] || (target.PACKAGE && target.PACKAGE.get(prop)),
       }),
       storage: null,
       attributes: {},
