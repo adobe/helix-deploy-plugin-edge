@@ -75,7 +75,7 @@ describe('Deploy Test', () => {
         '--cloudflare-account-id', '123',
         '--cloudflare-auth', 'test-token',
         '--name', 'test-worker',
-        '--bundler', 'webpack',
+        '--bundler', 'esbuild',
         '--esm', 'false',
       ]);
     builder.cfg._logger = new TestLogger();
@@ -141,7 +141,7 @@ describe('Deploy Test', () => {
         '--cloudflare-account-id', '123',
         '--cloudflare-auth', 'test-token',
         '--name', 'test-worker',
-        '--bundler', 'webpack',
+        '--bundler', 'esbuild',
         '--esm', 'false',
       ]);
     builder.cfg._logger = new TestLogger();

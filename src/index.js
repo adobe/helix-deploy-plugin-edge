@@ -12,7 +12,6 @@
 
 import ComputeAtEdgeDeployer from './ComputeAtEdgeDeployer.js';
 import FastlyGateway from './FastlyGateway.js';
-import EdgeBundler from './EdgeBundler.js';
 import EdgeESBuildBundler from './EdgeESBuildBundler.js';
 import CloudflareDeployer from './CloudflareDeployer.js';
 
@@ -20,6 +19,5 @@ export const plugins = [
   ComputeAtEdgeDeployer,
   FastlyGateway,
   CloudflareDeployer,
-  EdgeBundler,
   EdgeESBuildBundler,
 ];

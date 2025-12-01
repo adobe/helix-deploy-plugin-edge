@@ -68,7 +68,7 @@ describe('Cloudflare Integration Test', () => {
         '--test', '/foo',
         '--directory', testRoot,
         '--entryFile', 'src/index.js',
-        '--bundler', 'webpack',
+        '--bundler', 'esbuild',
         '--esm', 'false',
       ]);
     builder.cfg._logger = new TestLogger();

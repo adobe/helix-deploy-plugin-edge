@@ -56,8 +56,7 @@
     "*.cjs": "eslint"
   },
   "peerDependencies": {
-    "@adobe/helix-deploy": "^12.0.0 || ^13.0.0",
-    "@adobe/helix-deploy-plugin-webpack": "^1.0.2"
+    "@adobe/helix-deploy": "^12.0.0 || ^13.0.0"
   },
   "dependencies": {
     "@adobe/fastly-native-promises": "3.1.0",

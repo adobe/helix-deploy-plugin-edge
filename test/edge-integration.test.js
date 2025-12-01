@@ -80,7 +80,7 @@ describe('Edge Integration Test', () => {
         '-p', 'FOO=bar',
         '--directory', testRoot,
         '--entryFile', 'src/index.js',
-        '--bundler', 'webpack',
+        '--bundler', 'esbuild',
         '--esm', 'false',
       ]);
     builder.cfg._logger = new TestLogger();
