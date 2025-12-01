@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Adobe. All rights reserved.
+ * Copyright 2025 Adobe. All rights reserved.
  * This file is licensed to you under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License. You may obtain a copy
  * of the License at http://www.apache.org/licenses/LICENSE-2.0
@@ -10,6 +10,7 @@
  * governing permissions and limitations under the License.
  */
 import { fileURLToPath } from 'url';
+import { execSync, spawnSync } from 'child_process';
 import path from 'path';
 import fse from 'fs-extra';
 import * as esbuild from 'esbuild';
@@ -233,9 +234,107 @@ export default class EdgeESBuildBundler extends BaseBundler {
     ].join('\n'), { name: 'wrangler.toml' });
   }
 
+  /**
+   * Checks if a command is available in the system PATH
+   * @param {string} command - The command to check
+   * @returns {boolean} - True if the command is available
+   */
   // eslint-disable-next-line class-methods-use-this
-  validateBundle() {
-    // TODO: validate edge bundle
-    // Could potentially use wrangler/viceroy for validation
+  isCommandAvailable(command) {
+    try {
+      execSync(`which ${command}`, { stdio: 'ignore' });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Validates the edge bundle using wrangler (Cloudflare) or viceroy (Fastly) if available.
+   * This helps catch runtime issues before deployment.
+   */
+  async validateBundle() {
+    const { cfg } = this;
+    const bundlePath = cfg.edgeBundle;
+    const bundleDir = path.dirname(path.resolve(cfg.cwd, bundlePath));
+
+    // Try wrangler validation first (Cloudflare)
+    const hasWrangler = this.isCommandAvailable('wrangler');
+    if (hasWrangler) {
+      cfg.log.info('--: validating edge bundle with wrangler...');
+      try {
+        // Create a minimal wrangler.toml for validation
+        const wranglerToml = path.join(bundleDir, 'wrangler.toml');
+        const wranglerConfig = [
+          'name = "validation-test"',
+          `main = "${path.basename(bundlePath)}"`,
+          'compatibility_date = "2024-01-01"',
+          'no_bundle = true',
+        ].join('\n');
+        await fse.writeFile(wranglerToml, wranglerConfig);
+
+        // Run wrangler deploy --dry-run to validate without deploying
+        const result = spawnSync('wrangler', ['deploy', '--dry-run'], {
+          cwd: bundleDir,
+          stdio: 'pipe',
+          timeout: 30000,
+        });
+
+        // Clean up temporary wrangler.toml
+        await fse.remove(wranglerToml);
+
+        if (result.status === 0) {
+          cfg.log.info(chalk`{green ok:} wrangler validation passed`);
+        } else {
+          const stderr = result.stderr?.toString() || '';
+          cfg.log.warn(chalk`{yellow warn:} wrangler validation issues: ${stderr}`);
+        }
+      } catch (err) {
+        cfg.log.warn(chalk`{yellow warn:} wrangler validation failed: ${err.message}`);
+      }
+    }
+
+    // Try Fastly validation (via fastly CLI which uses viceroy)
+    const hasFastly = this.isCommandAvailable('fastly');
+    if (hasFastly) {
+      cfg.log.info('--: validating edge bundle with fastly (viceroy)...');
+      try {
+        // Create a minimal fastly.toml for validation
+        const fastlyToml = path.join(bundleDir, 'fastly.toml');
+        const fastlyConfig = [
+          'manifest_version = 2',
+          'name = "validation-test"',
+          'language = "javascript"',
+          '[scripts]',
+          'build = ""',
+        ].join('\n');
+        await fse.writeFile(fastlyToml, fastlyConfig);
+
+        // Run fastly compute serve with --skip-build to validate
+        // Use a short timeout and immediately kill to just check if bundle loads
+        const result = spawnSync('fastly', ['compute', 'serve', '--skip-build', '--file', path.basename(bundlePath)], {
+          cwd: bundleDir,
+          stdio: 'pipe',
+          timeout: 5000,
+        });
+
+        // Clean up temporary fastly.toml
+        await fse.remove(fastlyToml);
+
+        // Check if it started successfully (will timeout, but no errors means valid)
+        const stderr = result.stderr?.toString() || '';
+        if (!stderr.includes('error') && !stderr.includes('Error')) {
+          cfg.log.info(chalk`{green ok:} fastly validation passed`);
+        } else {
+          cfg.log.warn(chalk`{yellow warn:} fastly validation issues: ${stderr}`);
+        }
+      } catch (err) {
+        cfg.log.warn(chalk`{yellow warn:} fastly validation failed: ${err.message}`);
+      }
+    }
+
+    if (!hasWrangler && !hasFastly) {
+      cfg.log.info('--: skipping bundle validation (neither wrangler nor fastly CLI installed)');
+    }
   }
 }

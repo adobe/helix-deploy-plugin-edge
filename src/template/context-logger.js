@@ -10,6 +10,7 @@
  * governing permissions and limitations under the License.
  */
 /* eslint-env serviceworker */
+import { getLogger } from './fastly-runtime.js';
 
 /**
  * Normalizes log input to always be an object.
@@ -59,12 +60,16 @@ export function createFastlyLogger(context) {
   const loggers = {};
   let loggersReady = false;
   let loggerPromise = null;
-  let loggerModule = null;
+  let LoggerClass = null;
 
-  // Initialize Fastly logger module asynchronously
-  // eslint-disable-next-line import/no-unresolved
-  loggerPromise = import(/* webpackIgnore: true */ 'fastly:logger').then((module) => {
-    loggerModule = module;
+  // Initialize Fastly logger module asynchronously using fastly-runtime.js
+  loggerPromise = getLogger().then((Logger) => {
+    if (!Logger) {
+      // getLogger() returns null when import fails
+      // eslint-disable-next-line no-console
+      console.error('Failed to import fastly:logger: module not available');
+    }
+    LoggerClass = Logger;
     loggersReady = true;
     loggerPromise = null;
   }).catch((err) => {
@@ -88,7 +93,7 @@ export function createFastlyLogger(context) {
     loggerNames.forEach((name) => {
       if (!loggers[name]) {
         try {
-          loggers[name] = new loggerModule.Logger(name);
+          loggers[name] = new LoggerClass(name);
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error(`Failed to create Fastly logger "${name}": ${err.message}`);
