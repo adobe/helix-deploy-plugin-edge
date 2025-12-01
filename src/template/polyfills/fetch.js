@@ -11,14 +11,15 @@
  */
 /* eslint-env serviceworker */
 
-import { getBackend } from '../fastly-runtime.js';
+import { getBackend, getFastlyEnv } from '../fastly-runtime.js';
 
-// Platform detection
+// Platform detection - reuse fastly-runtime.js which handles imports correctly
 let nativeCacheOverride = null;
 let isFastly = false;
 let isCloudflare = false;
+let detectionComplete = false;
 
-// Detect Cloudflare environment
+// Detect Cloudflare environment (sync check)
 try {
   // eslint-disable-next-line no-undef
   if (typeof caches !== 'undefined' && caches.default) {
@@ -28,27 +29,7 @@ try {
   // Not Cloudflare
 }
 
-// Try to detect Fastly environment using fastly:env (most reliable)
-async function detectFastlyEnvironment() {
-  // eslint-disable-next-line no-console
-  console.log('detectFastlyEnvironment: starting detection');
-  try {
-    const moduleName = 'fastly:env';
-    // eslint-disable-next-line import/no-unresolved
-    const envModule = await import(/* webpackIgnore: true */ moduleName);
-    // eslint-disable-next-line no-console
-    console.log('detectFastlyEnvironment: import succeeded, envModule:', typeof envModule);
-    isFastly = true;
-    // eslint-disable-next-line no-console
-    console.log('Fastly environment detected via fastly:env');
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.log('detectFastlyEnvironment: import failed:', err?.message || err);
-    // Not Fastly
-  }
-}
-
-// Try to load Fastly's native CacheOverride (separate from detection)
+// Try to load Fastly's native CacheOverride
 async function loadFastlyCacheOverride() {
   try {
     const moduleName = 'fastly:cache-override';
@@ -57,21 +38,39 @@ async function loadFastlyCacheOverride() {
     nativeCacheOverride = module.CacheOverride;
     return module;
   } catch {
-    // CacheOverride not available - this is OK, detection uses fastly:env
+    // CacheOverride not available
     return null;
   }
 }
 
-// Initialize Fastly detection and optional CacheOverride loading
-async function initFastlyModules() {
-  await detectFastlyEnvironment();
-  if (isFastly) {
-    await loadFastlyCacheOverride();
+// Initialize platform detection using fastly-runtime.js
+async function initPlatformDetection() {
+  if (detectionComplete) return;
+
+  // If already detected as Cloudflare, skip Fastly detection
+  if (isCloudflare) {
+    detectionComplete = true;
+    return;
   }
+
+  // Try to detect Fastly by using getFastlyEnv from fastly-runtime.js
+  // This reuses the same import mechanism that the adapter uses
+  try {
+    await getFastlyEnv();
+    isFastly = true;
+    // eslint-disable-next-line no-console
+    console.log('fetch polyfill: Fastly environment detected via fastly-runtime.js');
+    // Load CacheOverride if available
+    await loadFastlyCacheOverride();
+  } catch {
+    // Not Fastly - this is fine
+  }
+
+  detectionComplete = true;
 }
 
-// Start loading Fastly modules (non-blocking)
-const fastlyModulePromise = initFastlyModules();
+// Start platform detection (non-blocking)
+const platformDetectionPromise = initPlatformDetection();
 
 /**
  * Extract hostname from a resource (URL string or Request object)
@@ -118,7 +117,7 @@ class CacheOverride {
     if (this.nativeInitialized) return;
     this.nativeInitialized = true;
 
-    await fastlyModulePromise;
+    await platformDetectionPromise;
 
     if (isFastly && nativeCacheOverride) {
       const NativeCO = nativeCacheOverride;
@@ -162,8 +161,8 @@ class CacheOverride {
 async function wrappedFetch(resource, options = {}) {
   const { cacheOverride, backend: providedBackend, ...restOptions } = options;
 
-  // Wait for Fastly detection to complete
-  await fastlyModulePromise;
+  // Wait for platform detection to complete
+  await platformDetectionPromise;
 
   // Handle Fastly-specific backend requirement
   if (isFastly) {
