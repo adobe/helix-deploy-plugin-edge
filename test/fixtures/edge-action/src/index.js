@@ -15,6 +15,45 @@ export async function main(req, context) {
   const url = new URL(req.url);
   const path = url.pathname;
 
+  // Environment detection test route - MUST BE FIRST to diagnose adapter issues
+  if (path.includes('/env-detect') || path.includes('/environment')) {
+    // eslint-disable-next-line no-console
+    console.log('=== ENV-DETECT ROUTE ===');
+
+    // Check for caches.default (Cloudflare indicator)
+    let hasCachesDefault = false;
+    try {
+      // eslint-disable-next-line no-undef
+      hasCachesDefault = typeof caches !== 'undefined' && !!caches?.default;
+    } catch {
+      // caches not available
+    }
+
+    const envInfo = {
+      // Runtime info from context (set by adapter)
+      runtime: context?.runtime || null,
+      func: context?.func || null,
+      // Request properties that indicate platform
+      requestIndicators: {
+        hasCfProperty: !!req.cf,
+        cfColo: req.cf?.colo || null,
+      },
+      // Global environment checks
+      globalChecks: {
+        hasCachesDefault,
+        hasGlobalFetch: typeof globalThis.fetch === 'function',
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    // eslint-disable-next-line no-console
+    console.log('envInfo:', JSON.stringify(envInfo));
+
+    return new Response(JSON.stringify(envInfo, null, 2), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   // CacheOverride API test routes
   if (path.includes('/cache-override-ttl')) {
     // Test: TTL override
