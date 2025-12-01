@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 import { fileURLToPath } from 'url';
-import { execSync, spawnSync } from 'child_process';
+import { execSync, spawn } from 'child_process';
 import path from 'path';
 import fse from 'fs-extra';
 import * as esbuild from 'esbuild';
@@ -250,18 +250,51 @@ export default class EdgeESBuildBundler extends BaseBundler {
   }
 
   /**
+   * Waits for a server to become ready by polling an HTTP endpoint.
+   * @param {string} url - The URL to poll
+   * @param {number} timeout - Maximum time to wait in ms
+   * @param {number} interval - Polling interval in ms
+   * @returns {Promise<boolean>} True if server is ready, false if timeout
+   */
+  // eslint-disable-next-line class-methods-use-this
+  async waitForServer(url, timeout = 10000, interval = 500) {
+    const start = Date.now();
+    // eslint-disable-next-line no-await-in-loop
+    while (Date.now() - start < timeout) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const response = await fetch(url);
+        if (response.ok || response.status < 500) {
+          return true;
+        }
+      } catch {
+        // Server not ready yet, continue polling
+      }
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((resolve) => {
+        setTimeout(resolve, interval);
+      });
+    }
+    return false;
+  }
+
+  /**
    * Validates the edge bundle using wrangler (Cloudflare) or viceroy (Fastly) if available.
-   * This helps catch runtime issues before deployment.
+   * Starts a local server, makes an HTTP request to validate, then stops the server.
+   * @returns {Promise<{wrangler?: boolean, fastly?: boolean}>} Validation results
    */
   async validateBundle() {
     const { cfg } = this;
     const bundlePath = cfg.edgeBundle;
     const bundleDir = path.dirname(path.resolve(cfg.cwd, bundlePath));
+    const results = {};
 
-    // Try wrangler validation first (Cloudflare)
+    // Try wrangler validation (Cloudflare)
     const hasWrangler = this.isCommandAvailable('wrangler');
     if (hasWrangler) {
       cfg.log.info('--: validating edge bundle with wrangler...');
+      let wranglerProcess = null;
+      const wranglerPort = 8787 + Math.floor(Math.random() * 1000);
       try {
         // Create a minimal wrangler.toml for validation
         const wranglerToml = path.join(bundleDir, 'wrangler.toml');
@@ -273,24 +306,40 @@ export default class EdgeESBuildBundler extends BaseBundler {
         ].join('\n');
         await fse.writeFile(wranglerToml, wranglerConfig);
 
-        // Run wrangler deploy --dry-run to validate without deploying
-        const result = spawnSync('wrangler', ['deploy', '--dry-run'], {
+        // Start wrangler dev server
+        wranglerProcess = spawn('wrangler', ['dev', '--local', '--port', String(wranglerPort)], {
           cwd: bundleDir,
           stdio: 'pipe',
-          timeout: 30000,
         });
 
-        // Clean up temporary wrangler.toml
-        await fse.remove(wranglerToml);
+        // Wait for server to be ready
+        const serverReady = await this.waitForServer(`http://127.0.0.1:${wranglerPort}/`);
 
-        if (result.status === 0) {
-          cfg.log.info(chalk`{green ok:} wrangler validation passed`);
+        if (serverReady) {
+          // Make a validation request
+          const response = await fetch(`http://127.0.0.1:${wranglerPort}/`);
+          if (response.ok || response.status < 500) {
+            cfg.log.info(chalk`{green ok:} wrangler validation passed (status: ${response.status})`);
+            results.wrangler = true;
+          } else {
+            cfg.log.warn(chalk`{yellow warn:} wrangler validation returned status ${response.status}`);
+            results.wrangler = false;
+          }
         } else {
-          const stderr = result.stderr?.toString() || '';
-          cfg.log.warn(chalk`{yellow warn:} wrangler validation issues: ${stderr}`);
+          cfg.log.warn(chalk`{yellow warn:} wrangler server failed to start within timeout`);
+          results.wrangler = false;
         }
       } catch (err) {
         cfg.log.warn(chalk`{yellow warn:} wrangler validation failed: ${err.message}`);
+        results.wrangler = false;
+      } finally {
+        // Kill wrangler process
+        if (wranglerProcess) {
+          wranglerProcess.kill('SIGTERM');
+        }
+        // Clean up temporary wrangler.toml
+        const wranglerToml = path.join(bundleDir, 'wrangler.toml');
+        await fse.remove(wranglerToml).catch(() => {});
       }
     }
 
@@ -298,43 +347,68 @@ export default class EdgeESBuildBundler extends BaseBundler {
     const hasFastly = this.isCommandAvailable('fastly');
     if (hasFastly) {
       cfg.log.info('--: validating edge bundle with fastly (viceroy)...');
+      let fastlyProcess = null;
+      const fastlyPort = 7676 + Math.floor(Math.random() * 1000);
       try {
         // Create a minimal fastly.toml for validation
         const fastlyToml = path.join(bundleDir, 'fastly.toml');
         const fastlyConfig = [
-          'manifest_version = 2',
+          'manifest_version = 3',
           'name = "validation-test"',
           'language = "javascript"',
+          'service_id = ""',
+          '',
           '[scripts]',
           'build = ""',
         ].join('\n');
         await fse.writeFile(fastlyToml, fastlyConfig);
 
-        // Run fastly compute serve with --skip-build to validate
-        // Use a short timeout and immediately kill to just check if bundle loads
-        const result = spawnSync('fastly', ['compute', 'serve', '--skip-build', '--file', path.basename(bundlePath)], {
+        // Start fastly compute serve
+        fastlyProcess = spawn('fastly', [
+          'compute', 'serve',
+          '--skip-build',
+          '--file', path.basename(bundlePath),
+          '--addr', `127.0.0.1:${fastlyPort}`,
+        ], {
           cwd: bundleDir,
           stdio: 'pipe',
-          timeout: 5000,
         });
 
-        // Clean up temporary fastly.toml
-        await fse.remove(fastlyToml);
+        // Wait for server to be ready
+        const serverReady = await this.waitForServer(`http://127.0.0.1:${fastlyPort}/`);
 
-        // Check if it started successfully (will timeout, but no errors means valid)
-        const stderr = result.stderr?.toString() || '';
-        if (!stderr.includes('error') && !stderr.includes('Error')) {
-          cfg.log.info(chalk`{green ok:} fastly validation passed`);
+        if (serverReady) {
+          // Make a validation request
+          const response = await fetch(`http://127.0.0.1:${fastlyPort}/`);
+          if (response.ok || response.status < 500) {
+            cfg.log.info(chalk`{green ok:} fastly validation passed (status: ${response.status})`);
+            results.fastly = true;
+          } else {
+            cfg.log.warn(chalk`{yellow warn:} fastly validation returned status ${response.status}`);
+            results.fastly = false;
+          }
         } else {
-          cfg.log.warn(chalk`{yellow warn:} fastly validation issues: ${stderr}`);
+          cfg.log.warn(chalk`{yellow warn:} fastly server failed to start within timeout`);
+          results.fastly = false;
         }
       } catch (err) {
         cfg.log.warn(chalk`{yellow warn:} fastly validation failed: ${err.message}`);
+        results.fastly = false;
+      } finally {
+        // Kill fastly process
+        if (fastlyProcess) {
+          fastlyProcess.kill('SIGTERM');
+        }
+        // Clean up temporary fastly.toml
+        const fastlyToml = path.join(bundleDir, 'fastly.toml');
+        await fse.remove(fastlyToml).catch(() => {});
       }
     }
 
     if (!hasWrangler && !hasFastly) {
       cfg.log.info('--: skipping bundle validation (neither wrangler nor fastly CLI installed)');
     }
+
+    return results;
   }
 }
