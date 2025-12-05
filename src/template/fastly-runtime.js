@@ -147,9 +147,7 @@ export async function getBackend(hostname) {
     const backend = new Backend({
       name: hostname,
       target: hostname,
-      hostOverride: hostname,
       useSSL: true,
-      sniHostname: hostname,
     });
     dynamicBackends.set(hostname, backend);
     return backend;
