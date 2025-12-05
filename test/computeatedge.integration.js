@@ -19,7 +19,10 @@ import fse from 'fs-extra';
 import path, { resolve } from 'path';
 import { createTestRoot, TestLogger } from './utils.js';
 
-config();
+// Only load .env if environment variables aren't already set (e.g., in CI)
+if (!process.env.HLX_FASTLY_AUTH || !process.env.CLOUDFLARE_AUTH) {
+  config();
+}
 
 describe('Fastly Compute@Edge Integration Test', () => {
   let testRoot;
@@ -36,6 +39,10 @@ describe('Fastly Compute@Edge Integration Test', () => {
   });
 
   it('Deploy a pure action to Compute@Edge and test CacheOverride API', async () => {
+    // Fail explicitly if required credentials are missing
+    if (!process.env.HLX_FASTLY_AUTH) {
+      throw new Error('HLX_FASTLY_AUTH environment variable is required for Fastly integration tests. Please set it in GitHub repository secrets.');
+    }
     const serviceID = '1yv1Wl7NQCFmNBkW4L8htc';
     const testDomain = 'possibly-working-sawfish';
     const baseUrl = `https://${testDomain}.edgecompute.app`;
@@ -62,7 +69,7 @@ describe('Fastly Compute@Edge Integration Test', () => {
         '--test', '/201',
         '--directory', testRoot,
         '--entryFile', 'src/index.js',
-        '--bundler', 'webpack',
+        '--bundler', 'esbuild',
         '--esm', 'false',
       ]);
     builder.cfg._logger = new TestLogger();
@@ -92,43 +99,12 @@ describe('Fastly Compute@Edge Integration Test', () => {
     const keyText = await keyResponse.text();
     assert.ok(keyText.indexOf('cache-override-key') > 0, 'Should test custom cache key');
     assert.ok(keyText.indexOf('cacheKey=test-key') > 0, 'Should include cache key parameter');
-  }).timeout(10000000);
 
-  it('Deploy logging example to Compute@Edge', async () => {
-    const serviceID = '1yv1Wl7NQCFmNBkW4L8htc';
-
-    await fse.copy(path.resolve(__rootdir, 'test', 'fixtures', 'logging-example'), testRoot);
-    process.chdir(testRoot);
-    const builder = await new CLI()
-      .prepare([
-        '--build',
-        '--plugin', resolve(__rootdir, 'src', 'index.js'),
-        '--verbose',
-        '--deploy',
-        '--target', 'c@e',
-        '--arch', 'edge',
-        '--compute-service-id', serviceID,
-        '--compute-test-domain', 'possibly-working-sawfish',
-        '--package.name', 'LoggingTest',
-        '--package.params', 'TEST=logging',
-        '--update-package', 'true',
-        '--fastly-gateway', 'deploy-test.anywhere.run',
-        '-p', 'FOO=bar',
-        '--fastly-service-id', '4u8SAdblhzzbXntBYCjhcK',
-        '--test', '/?operation=verbose',
-        '--directory', testRoot,
-        '--entryFile', 'index.js',
-        '--bundler', 'webpack',
-        '--esm', 'false',
-      ]);
-    builder.cfg._logger = new TestLogger();
-
-    const res = await builder.run();
-    assert.ok(res);
-    const out = builder.cfg._logger.output;
-    assert.ok(out.indexOf('possibly-working-sawfish.edgecompute.app') > 0, out);
-    assert.ok(out.indexOf('"status":"ok"') > 0, 'Response should include status ok');
-    assert.ok(out.indexOf('"logging":"enabled"') > 0, 'Response should indicate logging is enabled');
-    assert.ok(out.indexOf('dist/LoggingTest/fastly-bundle.tar.gz') > 0, out);
+    // Test logging functionality
+    const loggingResponse = await fetch(`${baseUrl}/?operation=verbose`);
+    const loggingText = await loggingResponse.text();
+    assert.ok(loggingResponse.status === 200, 'Logging endpoint should return 200');
+    assert.ok(loggingText.indexOf('"status":"ok"') > 0, 'Response should include status ok');
+    assert.ok(loggingText.indexOf('"logging":"enabled"') > 0, 'Response should indicate logging is enabled');
   }).timeout(10000000);
 });
