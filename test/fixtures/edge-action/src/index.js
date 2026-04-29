@@ -15,14 +15,12 @@ export async function main(req, context) {
   const url = new URL(req.url);
   const path = url.pathname;
 
-  // CacheOverride API test routes
+  // CacheOverride API test routes - rely on @adobe/fetch polyfill to register
+  // backends dynamically rather than requiring them to pre-exist on the Fastly service.
   if (path.includes('/cache-override-ttl')) {
     // Test: TTL override
     const cacheOverride = new CacheOverride('override', { ttl: 3600 });
-    const backendResponse = await fetch('https://www.aem.live/', {
-      backend: 'www.aem.live',
-      cacheOverride,
-    });
+    const backendResponse = await fetch('https://www.aem.live/', { cacheOverride });
     const contentLength = backendResponse.headers.get('content-length') || 'unknown';
     return new Response(`(${context?.func?.name}) ok: cache-override-ttl ttl=3600 size=${contentLength} – ${backendResponse.status}`);
   }
@@ -30,10 +28,7 @@ export async function main(req, context) {
   if (path.includes('/cache-override-pass')) {
     // Test: Pass mode (no caching)
     const cacheOverride = new CacheOverride('pass');
-    const backendResponse = await fetch('https://www.aem.live/', {
-      backend: 'www.aem.live',
-      cacheOverride,
-    });
+    const backendResponse = await fetch('https://www.aem.live/', { cacheOverride });
     const contentLength = backendResponse.headers.get('content-length') || 'unknown';
     return new Response(`(${context?.func?.name}) ok: cache-override-pass mode=pass size=${contentLength} – ${backendResponse.status}`);
   }
@@ -41,20 +36,14 @@ export async function main(req, context) {
   if (path.includes('/cache-override-key')) {
     // Test: Custom cache key
     const cacheOverride = new CacheOverride({ ttl: 300, cacheKey: 'test-key' });
-    const backendResponse = await fetch('https://www.aem.live/', {
-      backend: 'www.aem.live',
-      cacheOverride,
-    });
+    const backendResponse = await fetch('https://www.aem.live/', { cacheOverride });
     const contentLength = backendResponse.headers.get('content-length') || 'unknown';
     return new Response(`(${context?.func?.name}) ok: cache-override-key cacheKey=test-key size=${contentLength} – ${backendResponse.status}`);
   }
 
-  // Original status code test - use reliable backend (status code in path is preserved
-  // as part of the response context but not enforced upstream).
+  // Original status code test - use reliable backend.
   console.log(req.url, 'https://www.aem.live/');
-  const backendresponse = await fetch('https://www.aem.live/', {
-    backend: 'www.aem.live',
-  });
+  const backendresponse = await fetch('https://www.aem.live/');
   await backendresponse.text();
   return new Response(`(${context?.func?.name}) ok: ${await context.env.HEY} ${await context.env.FOO} – ${backendresponse.status}`);
 }
