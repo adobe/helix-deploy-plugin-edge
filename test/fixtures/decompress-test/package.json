@@ -1,0 +1,19 @@
+{
+  "name": "decompress-test",
+  "version": "1.0.0",
+  "description": "Test Project for Decompress Functionality",
+  "private": true,
+  "license": "Apache-2.0",
+  "main": "src/index.js",
+  "type": "module",
+  "wsk": {
+    "name": "decompress-test",
+    "webExport": true,
+    "package": {
+      "name": "decompress-package"
+    }
+  },
+  "devDependencies": {
+    "@adobe/fetch": "^4.1.8"
+  }
+}
