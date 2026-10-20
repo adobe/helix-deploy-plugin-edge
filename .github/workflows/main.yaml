@@ -16,16 +16,16 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Use Node.js 24.x
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '24.x'
       - run: npm ci
       - run: npm install @adobe/helix-deploy
       - run: npm run lint
       - run: npm test
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@v7
         with:
           flags: unittests
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -50,9 +50,9 @@ jobs:
       group: deploy
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Use Node.js 24.x
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '24.x'
       - run: npm ci
