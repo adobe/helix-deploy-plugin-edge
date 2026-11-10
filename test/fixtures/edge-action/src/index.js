@@ -21,27 +21,27 @@ export async function main(req, context) {
     // Test: TTL override
     const cacheOverride = new CacheOverride('override', { ttl: 3600 });
     const backendResponse = await fetch('https://www.aem.live/', { cacheOverride });
-    const contentLength = backendResponse.headers.get('content-length') || 'unknown';
-    return new Response(`(${context?.func?.name}) ok: cache-override-ttl ttl=3600 size=${contentLength} – ${backendResponse.status}`);
+    const size = (await backendResponse.text()).length;
+    return new Response(`(${context?.func?.name}) ok: cache-override-ttl ttl=3600 size=${size} – ${backendResponse.status}`);
   }
 
   if (path.includes('/cache-override-pass')) {
     // Test: Pass mode (no caching)
     const cacheOverride = new CacheOverride('pass');
     const backendResponse = await fetch('https://www.aem.live/', { cacheOverride });
-    const contentLength = backendResponse.headers.get('content-length') || 'unknown';
-    return new Response(`(${context?.func?.name}) ok: cache-override-pass mode=pass size=${contentLength} – ${backendResponse.status}`);
+    const size = (await backendResponse.text()).length;
+    return new Response(`(${context?.func?.name}) ok: cache-override-pass mode=pass size=${size} – ${backendResponse.status}`);
   }
 
   if (path.includes('/cache-override-key')) {
     // Test: Custom cache key
     const cacheOverride = new CacheOverride({ ttl: 300, cacheKey: 'test-key' });
     const backendResponse = await fetch('https://www.aem.live/', { cacheOverride });
-    const contentLength = backendResponse.headers.get('content-length') || 'unknown';
-    return new Response(`(${context?.func?.name}) ok: cache-override-key cacheKey=test-key size=${contentLength} – ${backendResponse.status}`);
+    const size = (await backendResponse.text()).length;
+    return new Response(`(${context?.func?.name}) ok: cache-override-key cacheKey=test-key size=${size} – ${backendResponse.status}`);
   }
 
-  // Original status code test - use reliable backend.
+  // Basic backend fetch test
   console.log(req.url, 'https://www.aem.live/');
   const backendresponse = await fetch('https://www.aem.live/');
   await backendresponse.text();
