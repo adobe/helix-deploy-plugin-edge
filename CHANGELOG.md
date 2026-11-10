@@ -1,3 +1,30 @@
+# [1.3.0](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.2.3...v1.3.0) (2026-11-10)
+
+
+### Bug Fixes
+
+* adapt to @fastly/js-compute 3.43 module layout ([4db98dd](https://github.com/adobe/helix-deploy-plugin-edge/commit/4db98dda362d85e7db2c3c94adee75a31b35c422))
+* add action parameter to logging-example integration tests ([d449f49](https://github.com/adobe/helix-deploy-plugin-edge/commit/d449f49863c893798f80ac22b39f9b2b365a0338))
+* add eslint exceptions for intentional console usage and fastly:logger import ([d468a73](https://github.com/adobe/helix-deploy-plugin-edge/commit/d468a73ab1d86147c066304cccdaf647f37bd591))
+* add required package.params to logging-example integration tests ([1da0479](https://github.com/adobe/helix-deploy-plugin-edge/commit/1da047935d3dc14a5b468b062e272484359aabc0))
+* address PR review comments - simplify exports while maintaining Fastly API compatibility ([b940cd9](https://github.com/adobe/helix-deploy-plugin-edge/commit/b940cd96753b0e19eb745c369dc7e36ec624f9cd))
+* change test path from /cache-demo/ to / ([234672e](https://github.com/adobe/helix-deploy-plugin-edge/commit/234672efdd7381c34f5002d6c9bd90ae95c37e8e)), closes [#82](https://github.com/adobe/helix-deploy-plugin-edge/issues/82)
+* consolidate CacheOverride tests into edge-action fixture ([e570afa](https://github.com/adobe/helix-deploy-plugin-edge/commit/e570afaeccb6ffe76ebfc6c5509323e91d8a4239)), closes [#82](https://github.com/adobe/helix-deploy-plugin-edge/issues/82)
+* correct integration test parameters and paths ([0b9ca25](https://github.com/adobe/helix-deploy-plugin-edge/commit/0b9ca25e3c99e762a3b9eac952a6b1e3035ba242)), closes [#82](https://github.com/adobe/helix-deploy-plugin-edge/issues/82)
+* **deps:** update external fixes ([#95](https://github.com/adobe/helix-deploy-plugin-edge/issues/95)) ([7fe4b82](https://github.com/adobe/helix-deploy-plugin-edge/commit/7fe4b829c6d26a68f5ade96d77dd55cc52a2ec82))
+* drop explicit backend option to allow dynamic registration ([9c91a3b](https://github.com/adobe/helix-deploy-plugin-edge/commit/9c91a3b4fc201816313d8a865aefd97b2167c4bc))
+* exclude test fixtures from coverage calculation ([4c6233e](https://github.com/adobe/helix-deploy-plugin-edge/commit/4c6233e881933d4f00f62127f1d4bfdef63e8dad))
+* replace unreliable httpbin.org with www.aem.live in edge-action fixture ([4fa48a3](https://github.com/adobe/helix-deploy-plugin-edge/commit/4fa48a3bf8925454f6a57f53e7e0321a1219da57))
+* use minified JSON in logging-example fixture ([d473203](https://github.com/adobe/helix-deploy-plugin-edge/commit/d473203ba43b2b0bc653b0ca2d3b744f77014778))
+* use native fetch instead of execa for HTTP tests ([ce5d813](https://github.com/adobe/helix-deploy-plugin-edge/commit/ce5d8135a0c9ac9a64bb9a2fc877ed544bcf8715))
+
+
+### Features
+
+* export CacheOverride API for cross-platform cache control ([2b13337](https://github.com/adobe/helix-deploy-plugin-edge/commit/2b13337abb6c74024f21c6da282cb58edccdc948)), closes [#82](https://github.com/adobe/helix-deploy-plugin-edge/issues/82)
+* implement context.log with Fastly logger multiplexing and Cloudflare tail worker support ([af1caeb](https://github.com/adobe/helix-deploy-plugin-edge/commit/af1caebdb9d7957db14344ca24e6c2acd940f558)), closes [#79](https://github.com/adobe/helix-deploy-plugin-edge/issues/79) [#79](https://github.com/adobe/helix-deploy-plugin-edge/issues/79)
+* **test:** add cache-demo fixture for CacheOverride API ([6491882](https://github.com/adobe/helix-deploy-plugin-edge/commit/64918822609faacbe556527c7223e316ea42ed57))
+
 ## [1.2.3](https://github.com/adobe/helix-deploy-plugin-edge/compare/v1.2.2...v1.2.3) (2025-11-24)
 
 
