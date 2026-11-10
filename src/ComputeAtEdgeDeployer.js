@@ -14,10 +14,18 @@ import path from 'path';
 import fs from 'fs/promises';
 import * as tar from 'tar';
 import Fastly from '@adobe/fastly-native-promises';
-import { compileApplicationToWasm } from '@fastly/js-compute/src/compileApplicationToWasm.js';
-import { parseInputs } from '@fastly/js-compute/src/parseInputs.js';
 import { BaseDeployer } from '@adobe/helix-deploy';
 import ComputeAtEdgeConfig from './ComputeAtEdgeConfig.js';
+
+/**
+ * Loads an internal module of `@fastly/js-compute`. The package only exports its entry
+ * point, so the module is located relative to the resolved entry file.
+ * @param {string} name module file name
+ * @returns {Promise<object>} the module
+ */
+async function loadJsCompute(name) {
+  return import(new URL(name, import.meta.resolve('@fastly/js-compute')).href);
+}
 
 /**
  * The class ComputeAtEdgeDeployer deploys to Fastly's Compute(at)Edge (WASM) runtime.
@@ -76,25 +84,21 @@ name = "${this.cfg.packageName}"
 service_id = ""
     `);
 
-    const {
-      input,
-      output,
-      wasmEngine,
-    } = await parseInputs([this.cfg.edgeBundle, path.resolve(bundleDir, 'bin', 'main.wasm')]);
+    const { parseInputs } = await loadJsCompute('./parseInputs.js');
+    const { compileApplicationToWasm } = await loadJsCompute('./compileApplicationToWasm.js');
+    const params = await parseInputs([this.cfg.edgeBundle, path.resolve(bundleDir, 'bin', 'main.wasm')]);
 
     return new Promise((resolve, reject) => {
       this.log.debug('--: creating WASM bundle of script and interpreter');
-      compileApplicationToWasm(
-        input, // input file
-        output, // output file
-        wasmEngine, // wasm engine
-        true, // enableHttpCache
-        false, // enableExperimentalHighResolutionTimeMethods
-        true, // enableAOT
-        '', // aotCache
-        true, // moduleMode
-        true, // doBundle
-      )
+      compileApplicationToWasm({
+        ...params,
+        enableHttpCache: true,
+        enableExperimentalHighResolutionTimeMethods: false,
+        enableAOT: true,
+        aotCache: '',
+        moduleMode: true,
+        doBundle: true,
+      })
         .then(async () => {
           const file = path.resolve(bundleDir, 'fastly-bundle.tar.gz');
           this.log.debug(chalk`{green ok:} created WASM bundle of script and interpreter in ${bundleDir}/bin/main.wasm`);
