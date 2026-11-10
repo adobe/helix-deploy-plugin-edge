@@ -291,6 +291,8 @@ export default class EdgeESBuildBundler extends BaseBundler {
 
     // Try wrangler validation (Cloudflare)
     const hasWrangler = this.isCommandAvailable('wrangler');
+    // needs a local wrangler runtime, covered by the integration tests
+    /* c8 ignore start */
     if (hasWrangler) {
       cfg.log.info('--: validating edge bundle with wrangler...');
       let wranglerProcess = null;
@@ -343,8 +345,12 @@ export default class EdgeESBuildBundler extends BaseBundler {
       }
     }
 
+    /* c8 ignore stop */
+
     // Try Fastly validation (via fastly CLI which uses viceroy)
     const hasFastly = this.isCommandAvailable('fastly');
+    // needs the fastly CLI, covered by the integration tests
+    /* c8 ignore start */
     if (hasFastly) {
       cfg.log.info('--: validating edge bundle with fastly (viceroy)...');
       let fastlyProcess = null;
@@ -404,6 +410,8 @@ export default class EdgeESBuildBundler extends BaseBundler {
         await fse.remove(fastlyToml).catch(() => {});
       }
     }
+
+    /* c8 ignore stop */
 
     if (!hasWrangler && !hasFastly) {
       cfg.log.info('--: skipping bundle validation (neither wrangler nor fastly CLI installed)');

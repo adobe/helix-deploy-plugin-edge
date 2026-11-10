@@ -5,8 +5,8 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "test": "c8 --exclude 'test/fixtures/**' mocha -i -g Integration",
-    "integration-ci": "c8 --exclude 'test/fixtures/**' mocha -g Integration",
+    "test": "c8 --exclude 'test/**' mocha -i -g Integration",
+    "integration-ci": "c8 --exclude 'test/**' mocha -g Integration",
     "lint": "eslint .",
     "semantic-release": "semantic-release",
     "semantic-release-dry": "semantic-release --dry-run --branches $CI_BRANCH",
